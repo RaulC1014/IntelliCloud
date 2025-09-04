@@ -1,31 +1,32 @@
-from flask import Blueprint, request, jsonify
-from models.db import get_db_connection
-from auth import authenticate_request, require_auth
+from flask import Blueprint, request, jsonify, g
 from datetime import datetime
+from auth import verify_api
+from extensions import limiter
+from models.threats import insert_threat
 
-collector_bp = Blueprint("collector_bp", __name__, url_prefix="/api/collect")
+collector_bp = Blueprint("collector_bp", __name__)
+
+def _best_client_ip():
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "0.0.0.0"
 
 @collector_bp.route("/ip", methods=["POST"])
-@require_auth
+@verify_api
+@limiter.limit("10 per minute")
 def collect_ip():
-    try:
-        ip_address = request.remote_addr or request.headers.get('X-Forwarded-For')
-        user_agent = request.headers.get("User-Agent", "unknown")
-        page = request.json.get("page", "unknown")
-        timestamp = datetime.utcnow()
+    data = request.get_json(silent=True) or {}
+    page = str(data.get("page", "unknown"))[:255]
+    user_agent = (request.headers.get("User-Agent") or "unknown")[:255]
+    ip_address = _best_client_ip()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSET INTO ip_logs (ip_address, user_agent, page_visited, timestamp)
-            VALUES (%s, %s, %s, %s)
-            """, (ip_address, user_agent, page, timestamp))
-        
-        conn.commit()
-        cur.close()
-        conn.close()
+    insert_threat(
+        ip_address=ip_address,
+        threat_level=0,                       
+        client_id=g.client["client_id"],      
+        description=f"page={page} ua={user_agent}",
+        timestamp=datetime.utcnow()
+    )
 
-        return jsonify({"message": "IP logged successfully"}), 201
-    
-    except Exception as e:
-        return jsonify({"error could not log IP": str(e)}), 500 
+    return jsonify({"ok": True, "logged_ip": ip_address, "client_id": g.client["client_id"]}), 201

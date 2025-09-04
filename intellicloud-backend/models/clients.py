@@ -1,35 +1,28 @@
-import secrets, uuid
+import secrets
 from models.db import get_db_connection
 
-def create_client(name, domain):
+def create_client(name, domain=None):
     conn = get_db_connection()
     if not conn:
         print("No DB connection")
         return None
-    
     try:
         api_key = secrets.token_hex(16)
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO clients (client_name, domain, api_key)
-            VALUES (%s, %s, %s)
-            RETURNING client_id, client_name, domain, api_key
-            """, (name, domain, api_key))
-        
-        client = cur.fetchone()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO clients (client_name, domain, api_key)
+                VALUES (%s, %s, %s)
+                RETURNING client_id, client_name, domain, api_key, created_at
+                """, (name, domain, api_key))
+        row = cur.fetchone()
         conn.commit()
-        cur.close()
-        conn.close()
+        return row
 
-        return {
-            "client_id": client[0],
-            "client_name": client[1],
-            "domain": client[2],
-            "api_key": client[3],
-        }
     except Exception as e:
         print("Failed to create client:", e)
         return None
+    finally:
+        conn.close()
     
 
 def get_all_clients():
@@ -37,24 +30,17 @@ def get_all_clients():
     if not conn:
         print("Cannot connect to DB")
         return []
-    
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT client_id, client_name, domain, api_key, created_at FROM clients")
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
-
-        return [{
-            "client_id": row[0],
-            "client_name": row[1],
-            "domain": row[2],
-            "api_key": row[3],
-            "created_at": row[4].isoformat() if row[3] else None
-        } for row in rows] 
+       with conn.cursor() as cur:
+            cur.execute("""SELECT client_id, client_name, domain, api_key, created_at FROM clients
+                        ORDER BY client_id DESC""")
+            rows = cur.fetchall()
+            return rows 
     except Exception as e:
         print("Failed to retrieve clients: ", e)
         return []
+    finally:
+        conn.close()
     
 def get_client_by_api_key(api_key):
     conn = get_db_connection()
@@ -63,19 +49,17 @@ def get_client_by_api_key(api_key):
         return None
     
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT client_id, client_name, domain, created_at FROM clients WHERE api_key = %s", (api_key,))
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT client_id, client_name, domain, created_at 
+                FROM clients 
+                WHERE api_key = %s", 
+            """, (api_key,))
         row = cur.fetchone()
-        cur.close()
-        conn.close()
-
-        if row:
-            return {
-                "client_id": row[0],
-                "client_name": row[1],
-                "domain": row[2],
-                "created_at": row[3].isoformat() if row[3] else None
-            }
+        return row
+    
     except Exception as e:
         print("Failed to lookup client by API key: ", e)
         return None
+    finally:
+        conn.close()

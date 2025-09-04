@@ -1,138 +1,103 @@
 import os
-import firebase_admin
-from firebase_admin import credentials, auth
 from functools import wraps
-from models.db import get_db_connection
 from flask import request, jsonify, g
+import firebase_admin
+from firebase_admin import credentials, auth as fb_auth
+from models.clients import get_client_by_api_key  
 
-
-cred = credentials.Certificate('serviceAccountKey.json')
-firebase_admin.initialize_app(cred)
+_firebase_inited = False
 
 def init_firebase_app():
-    if firebase_admin._apps:
+    """Initialize Firebase Admin once, using env-configurable creds."""
+    global _firebase_inited
+    if _firebase_inited:
         return
-    cred_path = os.getenv("FIREBASE_CRED_PATH","serviceAccounts/firebase-admin.json")
-    if not os.path.isabs(cred_path):
-        base = os.path.dirname(os.path.abspath(__file__))
-        cred_path = os.path.join(base, cred_path)
-    if not os.path.exists(cred_path):
-        raise RuntimeError(
-            f"Firebase credential not found at: {cred_path}."
-            "Set FIREBASE_CRED_PATH in your .env"
-        )
+    cred_path = os.getenv("FIREBASE_CREDENTIALS_JSON") or os.getenv("FIREBASE_CRED_PATH")
     project_id = os.getenv("FIREBASE_PROJECT_ID")
-    opts = {"project_Id": project_id} if project_id else None
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred, opts)
 
-def verify_token(id_token):
-    """
-    Verifies the firebase ID token from client
-    returns the decoded token if valid, none if invalid
-    """
-    try:
-        decoded_token = auth.verify_id_token(id_token)
-        role = decoded_token.get("role", "analyst")
-        decoded_token["role"] = role
-        return decoded_token
-    except Exception as e:
-        print("Token verification failed: ", e)
-        return None
+    if cred_path and os.path.exists(cred_path):
+        if not firebase_admin._apps:
+            opts = {"projectId": project_id} if project_id else None
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred, opts)
     
-def verify_api(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
+    _firebase_inited = True
+
+def _decode_bearer():
+    """Return decoded Firebase token dict or None."""
+    authz = request.headers.get("Authorization", "")
+    if not authz.startswith("Bearer "):
+        return None
+    token = authz.split(" ", 1)[1].strip()
+    try:
+        init_firebase_app()
+        
+        return fb_auth.verify_id_token(token)
+    except Exception as e:
+        print("Firebase token verification failed:", e)
+        return None
+
+def require_auth(fn):
+    """Require a valid Firebase bearer token. Attaches request.user."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        decoded = _decode_bearer()
+        if not decoded:
+            return jsonify({"error": "unauthorized"}), 401
+        request.user = {
+            "uid": decoded.get("uid"),
+            "email": decoded.get("email"),
+            "role": decoded.get("role", "user"),
+        }
+        return fn(*args, **kwargs)
+    return wrapper
+
+def require_role(required: str):
+    """Require a specific role claim (defaulting to 'user' if absent)."""
+    @wraps(required)
+    def deco(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            decoded = _decode_bearer()
+            if not decoded:
+                return jsonify({"error": "unauthorized"}), 401
+            role = decoded.get("role", "user")
+            if role != required:
+                return jsonify({"error": "forbidden", "need": required, "have": role}), 403
+            request.user = {
+                "uid": decoded.get("uid"),
+                "email": decoded.get("email"),
+                "role": role,
+            }
+            return fn(*args, **kwargs)
+        return wrapper
+    return deco
+
+def verify_api(fn):
+    """
+    Public API-key gate for client endpoints.
+    Reads key from X-Client-Key / x-api-key header or ?api_key=.
+    On success: sets g.client = {client_id, client_name, ...}
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
         api_key = (
-            request.headers.get("X-API-Key")
-            or request.header.get("x-api-key")
-            or request.args.get("apu_key")
+            request.headers.get("X-Client-Key")
+            or request.headers.get("x-api-key")
+            or request.args.get("api_key")
         )
         if not api_key:
-            return jsonify({"error": "Missing API key"}), 401
-        
-        conn = get_db_connection()
-        if not conn:
-            return {"error": "Database unavailable"}, 500
-        
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT client_id, client_name FROM clients WHERE api_key = %s", (api_key,),
-            )
-            client = cur.fetchone()
-        finally:
-            try:
-                cur.close()
-                conn.close()
-            except Exception:
-                pass
+            return jsonify({"error": "missing_api_key"}), 401
 
+        client = get_client_by_api_key(api_key)
         if not client:
-            return jsonify({"error": "Invalid API key"}), 403
-        
-        g.client = {"client_id": client[0], "client_name": client[1]}
-        return f(*args, **kwargs)
-    
-    return decorated_function
-    
-def authenticate_request():
-    """
-    Authenticates incoming HTTP requests using Firebase ID tokens.
-    Returns (user, None, 200) if authenticated,
-    or (None, error_response, status_code) if not
-    """
+            return jsonify({"error": "invalid_api_key"}), 403
 
-    auth_header = request.headers.get('Authorization')
-
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return None, jsonify({"error": "Missing or invalid Authorization header"}), 401
-    
-    id_token = auth_header.split("Bearer ", 1)[1].strip()
-    decoded_token = verify_token(id_token)
-
-    if not decoded_token:
-        return None, jsonify({"error": "Invalid or expired token"}), 401
-    
-    user = {
-        "user_id": decoded_token.get("uid"),
-        "email": decoded_token.get("email"),
-        "role": decoded_token.get("role", "analyst"),
-    }
-
-    return user, None, 200
-
-def require_role(role_required):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            user, error_response, status_code = authenticate_request()
-            if error_response:
-                return error_response, status_code
-            if user.get("role") != role_required:
-                return jsonify({"error": f"Forbidden: {role_required} access required"}), 403
-            request.user = user
-            return f(user, *args, **kwargs)
-        return wrapper
-    return decorator
-
-def require_auth(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Authorization header missing"}), 401
-        
-        id_token = auth_header.split(" ", 1)[1].strip()
-        decoded_token = verify_token(id_token)
-        if not decoded_token:
-            return jsonify({"error": "Invalid or expired token"}), 401
-        
-        user = {
-            "user_id": decoded_token.get("uid"),
-            "email": decoded_token.get("email"),
-            "role": decoded_token.get("role", "user")
+        g.client = {
+            "client_id": client["client_id"],
+            "client_name": client["client_name"],
+            "domain": client.get("domain"),
+            "created_at": client.get("created_at"),
         }
-
-        request.user = user
-        return f(user, *args, **kwargs)
+        return fn(*args, **kwargs)
     return wrapper
