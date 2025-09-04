@@ -1,0 +1,18 @@
+{
+  "name": "intellicloud",
+  "version": "1.0.0",
+  "description": "Senior Capstone Project",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"cd intellicloud-backend && .venv\\Scripts\\activate\\python app.py\" \"cd intellicloud-frontend && npm start\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase": "^11.7.3"
+  }
+}

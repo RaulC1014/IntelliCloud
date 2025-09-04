@@ -1,0 +1,25 @@
+# Python virtual environment
+venv/
+
+# Bytecode and cache files
+__pycache__/
+*.pyc
+
+# Environment variable files
+.env
+
+# Firebase service account key (your private credentials)
+firebase-admin.json
+
+# VS Code settings (optional, personal to your IDE)
+.vscode/
+
+# OS-specific files (optional but safe to ignore)
+.DS_Store
+Thumbs.db
+intellicloud-frontend/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
