@@ -3,6 +3,7 @@ from datetime import datetime
 from auth import verify_api
 from extensions import limiter
 from models.threats import insert_threat
+from services.detections import eval_event
 
 collector_bp = Blueprint("collector_bp", __name__)
 
@@ -29,4 +30,14 @@ def collect_ip():
         timestamp=datetime.utcnow()
     )
 
+    event = {
+        "ip_address": ip_address,
+        "threat_level": 0,
+        "user_agent": user_agent,
+        "description": f"page={page}"
+    }
+    eval_event(event, g.client["client_id"])
+
     return jsonify({"ok": True, "logged_ip": ip_address, "client_id": g.client["client_id"]}), 201
+
+    

@@ -21,3 +21,4 @@ const auth = getAuth(app);
 console.log("Firebase initialized with API key: ", process.env.REACT_APP_FIREBASE_API_KEY)
 
 export { auth };
+ 

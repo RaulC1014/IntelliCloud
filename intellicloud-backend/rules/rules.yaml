@@ -1,0 +1,18 @@
+- id: brute_force_login
+  when:
+    threat_level_gte: 3
+    ip_in_blocklist: false
+  severity: high
+  title: "High threat event"
+  actions:
+    - type: log
+    - type: notify   # stub webhook/email
+    - type: block_ip # add to ip_blocklist
+
+- id: suspicious_crawler
+  when:
+    ua_regex: "(curl|wget|python-requests)"
+  severity: medium
+  title: "Suspicious crawler detected"
+  actions:
+    - type: log

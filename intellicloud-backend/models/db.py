@@ -4,6 +4,8 @@ from psycopg2.extras import RealDictCursor
 
 def get_db_connection():
 
+    """Return a psycopg2 connection with RealDictCursor or None on failure."""
+
     url = os.getenv("DATABASE_URL")
     if url:
         try:
@@ -13,12 +15,12 @@ def get_db_connection():
         
     host = os.getenv("DB_HOST,", "localhost")
     port = int(os.getenv("DB_PORT", "5432"))
-    db = os.getenv("DB+NAME", "intellicloud")
+    db = os.getenv("DB_NAME", "intellicloud")
     user = os.getenv("DB_USER", "postgres")
     pwd = os.getenv("DB_PASSWORD", "")
 
     try:
-        psycopg2.connect (
+        return psycopg2.connect (
             host = host, port = port, dbname = db, user = user, password = pwd,
             cursor_factory=RealDictCursor, connect_timeout = 5
         )
