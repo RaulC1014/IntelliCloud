@@ -6,13 +6,16 @@ bp = Blueprint("audit", __name__)
 _log = collections.deque(maxlen=1000)
 _subs = set()
 
-def log_event(actor: str, action: str, target: str, details: str):
+# Updated signature to accept level and proto (defaulting to System/Info)
+def log_event(actor: str, action: str, target: str, details: str, level: str = "Info", proto: str = "System"):
     """Call from anywhere to append and broadcast"""
     ev = {
         "aid": f"a-{uuid.uuid4().hex[:8]}",
         "actor": actor,
         "action": action,
         "target": target,
+        "level": level,    # New Field
+        "proto": proto,    # New Field
         "at": time.time(),
         "details": details,
     }

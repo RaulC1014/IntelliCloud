@@ -2,9 +2,13 @@ import os, logging
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from extensions import limiter
 from auth import init_firebase_app
 from services.geo import load_readers
+from routes.ai import ai_bp
 
 CITY_DB = os.environ.get("GEOIP_CITY_DB", "/data/GeoLite2-City.mmdb")
 ASN_DB  = os.environ.get("GEOIP_ASN_DB",  "/data/GeoLite2-ASN.mmdb")
@@ -55,6 +59,8 @@ def create_app():
             "http://127.0.0.1:8080",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+            "http://localhost:5174",      
+            "http://127.0.0.1:5174",
             "http://localhost:5175",
             "http://127.0.0.1:5175"
         ]
@@ -78,6 +84,7 @@ def create_app():
     from routes.ops import bp as ops_bp
     from routes.audit import bp as audit_bp
 
+    app.register_blueprint(ai_bp, url_prefix="/api")
     app.register_blueprint(threats_bp, url_prefix="/api")
     app.register_blueprint(track_bp, url_prefix="/api")
     app.register_blueprint(collector_bp, url_prefix="/api")

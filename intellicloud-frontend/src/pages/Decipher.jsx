@@ -1,102 +1,292 @@
 // src/pages/Decipher.jsx
-import React from 'react';
-import { runDecipher } from '../decipher';
+import React, { useState, useEffect } from 'react';
+
+// --- Morse Code Dictionary ---
+const MORSE_MAP = {
+  'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..',
+  '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----', ' ': '/'
+};
+const REVERSE_MORSE = Object.fromEntries(Object.entries(MORSE_MAP).map(([k, v]) => [v, k]));
+
+// --- Algorithms ---
+const ciphers = {
+  base64: {
+    name: 'Base64',
+    desc: 'Encode binary data into ASCII characters.',
+    encode: (s) => { try { return btoa(s); } catch { return 'Error: Input must be valid ASCII for Base64.'; } },
+    decode: (s) => { try { return atob(s); } catch { return 'Invalid Base64 string.'; } }
+  },
+  hex: {
+    name: 'Hexadecimal',
+    desc: 'Convert text to hexadecimal bytes.',
+    encode: (s) => s.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' '),
+    decode: (s) => {
+      try {
+        const hex = s.replace(/\s+/g, '');
+        if (hex.length % 2 !== 0) return 'Invalid Hex (odd length)';
+        let str = '';
+        for (let i = 0; i < hex.length; i += 2) str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        return str;
+      } catch { return 'Invalid Hex'; }
+    }
+  },
+  rot13: {
+    name: 'ROT13',
+    desc: 'Rotate characters by 13 places (Caesar Cipher variant).',
+    encode: (s) => s.replace(/[a-zA-Z]/g, c => String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)),
+    decode: (s) => s.replace(/[a-zA-Z]/g, c => String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26))
+  },
+  atbash: {
+    name: 'Atbash',
+    desc: 'Reverses the alphabet (A becomes Z, B becomes Y).',
+    encode: (s) => s.replace(/[a-zA-Z]/g, c => {
+      const base = c <= 'Z' ? 65 : 97;
+      return String.fromCharCode(base + (25 - (c.charCodeAt(0) - base)));
+    }),
+    decode: (s) => s.replace(/[a-zA-Z]/g, c => {
+      const base = c <= 'Z' ? 65 : 97;
+      return String.fromCharCode(base + (25 - (c.charCodeAt(0) - base)));
+    })
+  },
+  morse: {
+    name: 'Morse Code',
+    desc: 'Dots and dashes. Use / for space.',
+    encode: (s) => s.toUpperCase().split('').map(c => MORSE_MAP[c] || c).join(' '),
+    decode: (s) => s.split(' ').map(c => REVERSE_MORSE[c] || c).join('')
+  },
+  railfence: {
+    name: 'Rail Fence',
+    desc: 'Zig-zag transposition cipher.',
+    requiresKey: true,
+    keyLabel: 'Rails (Number)',
+    defaultKey: '3',
+    encode: (s, key) => {
+      const rails = parseInt(key) || 3;
+      if (rails < 2) return s;
+      let fence = Array(rails).fill().map(() => []);
+      let rail = 0, dir = 1;
+      for (let c of s) {
+        fence[rail].push(c);
+        rail += dir;
+        if (rail === 0 || rail === rails - 1) dir = -dir;
+      }
+      return fence.flat().join('');
+    },
+    decode: (s, key) => {
+      const rails = parseInt(key) || 3;
+      if (rails < 2) return s;
+      const len = s.length;
+      let fence = Array(rails).fill().map(() => Array(len).fill(null));
+      let rail = 0, dir = 1;
+      
+      // Mark spots
+      for (let i = 0; i < len; i++) {
+        fence[rail][i] = '?';
+        rail += dir;
+        if (rail === 0 || rail === rails - 1) dir = -dir;
+      }
+      
+      // Fill text
+      let index = 0;
+      for (let r = 0; r < rails; r++) {
+        for (let c = 0; c < len; c++) {
+          if (fence[r][c] === '?' && index < len) fence[r][c] = s[index++];
+        }
+      }
+      
+      // Read Zig-Zag
+      let res = '';
+      rail = 0; dir = 1;
+      for (let i = 0; i < len; i++) {
+        res += fence[rail][i];
+        rail += dir;
+        if (rail === 0 || rail === rails - 1) dir = -dir;
+      }
+      return res;
+    }
+  },
+  vigenere: {
+    name: 'Vigenère',
+    desc: 'Polyalphabetic substitution using a keyword.',
+    requiresKey: true,
+    keyLabel: 'Secret Key (Text)',
+    defaultKey: 'KEY',
+    encode: (s, key) => {
+      if (!key) return s;
+      const k = key.toUpperCase().replace(/[^A-Z]/g, '');
+      if (!k) return s;
+      let ki = 0;
+      return s.replace(/[a-zA-Z]/g, c => {
+        const base = c <= 'Z' ? 65 : 97;
+        const shift = k[ki++ % k.length].charCodeAt(0) - 65;
+        return String.fromCharCode(base + (c.charCodeAt(0) - base + shift) % 26);
+      });
+    },
+    decode: (s, key) => {
+      if (!key) return s;
+      const k = key.toUpperCase().replace(/[^A-Z]/g, '');
+      if (!k) return s;
+      let ki = 0;
+      return s.replace(/[a-zA-Z]/g, c => {
+        const base = c <= 'Z' ? 65 : 97;
+        const shift = k[ki++ % k.length].charCodeAt(0) - 65;
+        return String.fromCharCode(base + (c.charCodeAt(0) - base - shift + 26) % 26);
+      });
+    }
+  }
+};
 
 export default function Decipher() {
-    const [algo, setAlgo] = React.useState('hex');
-    const [mode, setMode] = React.useState('enc');
-    const [input, setInput] = React.useState('');
-    const [rails, setRails] = React.useState(3);
-    const [key, setKey] = React.useState('');
-    const [output, setOutput] = React.useState('');
-    const [err, setErr] = React.useState('');
+  const [activeTool, setActiveTool] = useState('base64');
+  const [mode, setMode] = useState('encode');
+  const [input, setInput] = useState('');
+  const [cipherKey, setCipherKey] = useState('');
+  const [output, setOutput] = useState('');
 
-    React.useEffect(() => {
-    try { setOutput(runDecipher({ algo, mode, input, rails, key })); setErr(''); }
-    catch (e) { setOutput(''); setErr(e?.message || String(e)); }
-    }, [algo, mode, input, rails, key]);
+  // Auto-run when inputs change
+  useEffect(() => {
+    const tool = ciphers[activeTool];
+    
+    // Set default key if empty and tool requires one
+    if (tool.requiresKey && !cipherKey) {
+        setCipherKey(tool.defaultKey);
+    }
 
-    const onCopy = async () => { try { await navigator.clipboard.writeText(output || ''); } catch {/* */} };
-    const onDownload = () => {
-    const blob = new Blob([output || ''], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `decipher-${algo}-${mode}.txt`;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    };
+    if (!input) { setOutput(''); return; }
+    
+    // Run cipher
+    const res = mode === 'encode' 
+      ? tool.encode(input, cipherKey) 
+      : tool.decode(input, cipherKey);
+      
+    setOutput(String(res));
+  }, [input, activeTool, mode, cipherKey]);
 
-    const showRails = algo === 'railfence';
-    const showKey = algo === 'vigenere';
-    const showMode = !['rot13','atbash'].includes(algo);
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(output);
+    alert('Output copied to clipboard');
+  };
 
-    return (
-    <div className="page-decipher shell">
-        <div className="card decipher-card">
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 12 }}>
-            <h3 className="h1" style={{ fontSize: 20, margin: 0 }}>Decipher</h3>
+  const tool = ciphers[activeTool];
+
+  return (
+    <div className="shell page-decipher animate-fade" style={{ maxWidth: 1400, marginTop: 20 }}>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24, minHeight: '70vh' }}>
+        
+        {/* SIDEBAR */}
+        <div className="card animate-slide" style={{ padding: 0, overflow: 'hidden', height: 'fit-content' }}>
+          <div style={{ padding: 20, background: 'var(--panel-2)', borderBottom: '1px solid var(--border)' }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Ciphers</h3>
+          </div>
+          <div style={{ padding: 12 }}>
+            {Object.keys(ciphers).map(key => (
+              <button 
+                key={key}
+                onClick={() => { setActiveTool(key); setCipherKey(ciphers[key].defaultKey || ''); }}
+                className="btn"
+                style={{ 
+                  width: '100%', justifyContent: 'flex-start', marginBottom: 8,
+                  background: activeTool === key ? 'var(--brand)' : 'transparent',
+                  color: activeTool === key ? 'white' : 'var(--text)',
+                  border: activeTool === key ? 'none' : '1px solid transparent',
+                  fontWeight: 600
+                }}
+              >
+                {ciphers[key].name}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="toolbar" style={{ alignItems:'center' }}>
+        {/* MAIN WORKSPACE */}
+        <div className="card animate-slide animate-delay-1" style={{ display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Header */}
+          <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-            <label className="label" htmlFor="algo">Algorithm</label>
-            <select id="algo" className="input" value={algo} onChange={e=>setAlgo(e.target.value)} style={{ minWidth: 180 }}>
-                <option value="hex">Hex</option>
-                <option value="base64">Base64</option>
-                <option value="rot13">ROT13</option>
-                <option value="atbash">Atbash</option>
-                <option value="morse">Morse</option>
-                <option value="railfence">Rail Fence</option>
-                <option value="vigenere">Vigenère</option>
-            </select>
+              <h2 className="h1" style={{ fontSize: 24, margin: 0 }}>{tool.name}</h2>
+              <p className="p-muted" style={{ margin: 0 }}>{tool.desc}</p>
+            </div>
+            
+            {/* Mode Switcher */}
+            <div style={{ background: 'var(--input)', padding: 4, borderRadius: 8, display: 'flex' }}>
+              <button 
+                onClick={() => setMode('encode')}
+                style={{ 
+                  padding: '8px 24px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600,
+                  background: mode === 'encode' ? 'var(--panel)' : 'transparent',
+                  color: mode === 'encode' ? 'var(--brand)' : 'var(--muted)',
+                  boxShadow: mode === 'encode' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
+                }}
+              >
+                Encode
+              </button>
+              <button 
+                onClick={() => setMode('decode')}
+                style={{ 
+                  padding: '8px 24px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600,
+                  background: mode === 'decode' ? 'var(--panel)' : 'transparent',
+                  color: mode === 'decode' ? 'var(--brand)' : 'var(--muted)',
+                  boxShadow: mode === 'decode' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
+                }}
+              >
+                Decode
+              </button>
+            </div>
+          </div>
+
+          {/* DYNAMIC KEY INPUT (Shows only if needed) */}
+          {tool.requiresKey && (
+            <div className="animate-fade" style={{ marginBottom: 20 }}>
+                <label className="label" style={{color:'var(--brand)'}}>{tool.keyLabel}</label>
+                <input 
+                    className="input" 
+                    value={cipherKey} 
+                    onChange={e => setCipherKey(e.target.value)}
+                    placeholder={tool.defaultKey}
+                    style={{ borderColor: 'var(--brand)' }}
+                />
+            </div>
+          )}
+
+          {/* Input / Output Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, flex: 1 }}>
+            
+            {/* INPUT */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="label">Input Payload</label>
+              <textarea 
+                className="input mono" 
+                style={{ flex: 1, resize: 'none', minHeight: 400, fontSize: 14, lineHeight: 1.6 }}
+                placeholder="Paste text here..."
+                value={input}
+                onChange={e => setInput(e.target.value)}
+              />
             </div>
 
-            {showMode && (
-            <div>
-                <label className="label" htmlFor="mode">Mode</label>
-                <select id="mode" className="input" value={mode} onChange={e=>setMode(e.target.value)} style={{ width: 140 }}>
-                <option value="enc">Encode</option>
-                <option value="dec">Decode</option>
-                </select>
+            {/* OUTPUT */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label className="label">Result</label>
+                <button onClick={copyToClipboard} style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  Copy Output
+                </button>
+              </div>
+              <textarea 
+                className="input mono" 
+                readOnly
+                style={{ flex: 1, resize: 'none', minHeight: 400, fontSize: 14, lineHeight: 1.6, background: 'var(--panel-2)', borderColor: 'var(--brand)' }}
+                placeholder="Result will appear here..."
+                value={output}
+              />
             </div>
-            )}
 
-            {showRails && (
-            <div>
-                <label className="label" htmlFor="rails">Rails</label>
-                <input id="rails" type="number" className="input" min="2" value={rails}
-                        onChange={e=>setRails(Number(e.target.value)||2)} style={{ width: 100 }} />
-            </div>
-            )}
+          </div>
 
-            {showKey && (
-            <div>
-                <label className="label" htmlFor="key">Key</label>
-                <input id="key" className="input" placeholder="letters only" value={key}
-                        onChange={e=>setKey(e.target.value)} style={{ width: 200 }} />
-            </div>
-            )}
-
-            <div style={{ flex:1 }} />
         </div>
 
-        <div className="io-grid">
-            <div>
-            <label className="label" htmlFor="in">Input</label>
-            <textarea id="in" className="input" value={input}
-                        onChange={e=>setInput(e.target.value)} placeholder="Type or paste here..." />
-            </div>
-            <div>
-            <label className="label" htmlFor="out">Output</label>
-            <textarea id="out" className="input" value={output} readOnly
-                        placeholder="Result updates as you type..." />
-            <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                <button className="btn" onClick={onCopy}>Copy</button>
-                <button className="btn" onClick={onDownload}>Download</button>
-            </div>
-            </div>
-        </div>
-
-        {err && <p className="helper" style={{ color: 'salmon', marginTop: 8 }}>{err}</p>}
-        </div>
+      </div>
     </div>
-    );
+  );
 }

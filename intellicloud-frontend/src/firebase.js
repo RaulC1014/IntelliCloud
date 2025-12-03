@@ -1,6 +1,5 @@
-import { isFirebaseConfigured, firebaseEnv } from './config';
-
-// Top-level imports only:
+// src/firebase.js
+import { firebaseEnv } from './config';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
@@ -8,113 +7,52 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updateProfile,
 } from 'firebase/auth';
 
-let register, login, logout, getCurrentUser, onAuthStateChangedSub, isMockAuth;
+// 1. Initialize Real Firebase
+const app = initializeApp({
+  apiKey: firebaseEnv.apiKey,
+  authDomain: firebaseEnv.authDomain,
+  projectId: firebaseEnv.projectId,
+  appId: firebaseEnv.appId,
+});
 
-if (isFirebaseConfigured) {
-  // --- Real Firebase Auth ---
-  const app = initializeApp({
-    apiKey: firebaseEnv.apiKey,
-    authDomain: firebaseEnv.authDomain,
-    projectId: firebaseEnv.projectId,
-    appId: firebaseEnv.appId,
-  });
+const auth = getAuth(app);
 
-  const auth = getAuth(app);
+// 2. Real Registration (With Name Saving & Reload)
+const register = async (email, password, first, last, dob) => {
+  // Create account on Firebase
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
 
-  register = (email, password) =>
-    createUserWithEmailAndPassword(auth, email, password).then((r) => r.user);
+  // Save the name immediately
+  if (first && last) {
+    const fullName = `${first} ${last}`;
+    await updateProfile(user, { displayName: fullName });
+    
+    // CRITICAL FIX: Reload user to ensure the Auth listener sees the new name
+    await user.reload();
+    
+    // Force local update on the object reference just in case
+    user.displayName = fullName;
+  }
+  
+  return user;
+};
 
-  login = (email, password) =>
-    signInWithEmailAndPassword(auth, email, password).then((r) => r.user);
+// 3. Real Login
+const login = (email, password) =>
+  signInWithEmailAndPassword(auth, email, password).then((r) => r.user);
 
-  logout = () => signOut(auth);
+// 4. Real Logout
+const logout = () => signOut(auth);
 
-  getCurrentUser = () => auth.currentUser;
+// 5. Helpers
+const getCurrentUser = () => auth.currentUser;
+const onAuthStateChangedSub = (cb) => onAuthStateChanged(auth, cb);
 
-  onAuthStateChangedSub = (cb) => onAuthStateChanged(auth, cb);
-
-  isMockAuth = false;
-} else {
-  // --- Mock Auth (LocalStorage) for Phase 1 ---
-  const KEY = 'ic_mock_user';
-
-  const safeGet = () => {
-    try {
-      return typeof localStorage !== 'undefined'
-        ? JSON.parse(localStorage.getItem(KEY) || 'null')
-        : null;
-    } catch {
-      return null;
-    }
-  };
-  const safeSet = (user) => {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(KEY, JSON.stringify(user));
-        // Fire a same-tab microtask callback for listeners
-        if (typeof window !== 'undefined') {
-          Promise.resolve().then(() =>
-            window.dispatchEvent(new StorageEvent('storage', { key: KEY }))
-          );
-        }
-      }
-    } catch { /* ignore */ }
-  };
-  const safeRemove = () => {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(KEY);
-        if (typeof window !== 'undefined') {
-          Promise.resolve().then(() =>
-            window.dispatchEvent(new StorageEvent('storage', { key: KEY }))
-          );
-        }
-      }
-    } catch { /* ignore */ }
-  };
-
-  register = async (email, _password) => {              // underscore = intentionally unused
-    void _password;
-    const user = { uid: 'mock-' + Math.random().toString(36).slice(2), email };
-    safeSet(user);
-    await new Promise((r) => setTimeout(r, 250));
-    return user;
-  };
-
-  login = async (email, _password) => {                 // underscore here too
-    void _password;
-    let user = safeGet();
-    if (!user) {
-      user = { uid: 'mock-' + Math.random().toString(36).slice(2), email };
-      safeSet(user);
-    }
-    await new Promise((r) => setTimeout(r, 200));
-    return user;
-  };
-
-  logout = async () => {
-    safeRemove();
-    await new Promise((r) => setTimeout(r, 120));
-  };
-
-  getCurrentUser = () => safeGet();
-
-  onAuthStateChangedSub = (cb) => {
-    const listener = () => cb(getCurrentUser());
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', listener);
-      // Initial tick so subscribers get the current user immediately
-      Promise.resolve().then(listener);
-      return () => window.removeEventListener('storage', listener);
-    }
-    // SSR/no-window fallback: call once and return a no-op unsubscribe
-    listener();
-    return () => {};
-  };
-
-  isMockAuth = true;
-}
+// Flag to tell the UI we are in Real Mode
+const isMockAuth = false;
 
 export { register, login, logout, getCurrentUser, onAuthStateChangedSub, isMockAuth };
