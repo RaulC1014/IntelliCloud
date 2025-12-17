@@ -1,4 +1,4 @@
-import json, time, queue, collections, uuid, ipaddress
+import json, time, queue, collections, uuid, ipaddress, os
 from flask import Blueprint, Response, request, current_app
 from routes.audit import log_event
 from services.geo import enrich_pair
@@ -7,7 +7,9 @@ bp = Blueprint("traffic", __name__)
 
 last_event_ts = 0.0
 subscribers = set()
-backlog = collections.deque(maxlen=200)
+MAX_BACKLOG = int(os.getenv("TRAFFIC_BACKLOG", "1000"))
+backlog = collections.deque(maxlen=MAX_BACKLOG)
+
 
 RFC1918 = [
     ipaddress.ip_network("10.0.0.0/8"),

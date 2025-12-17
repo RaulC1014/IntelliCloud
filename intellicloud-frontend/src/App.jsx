@@ -1,10 +1,10 @@
 // src/App.jsx
 import React, { useEffect, useState } from 'react';
-import { isMockAuth, register, login, logout, getCurrentUser, onAuthStateChangedSub } from './firebase';
+import { register, login, logout, getCurrentUser, onAuthStateChangedSub } from './firebase';
 import Home from './pages/Home.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Decipher from './pages/Decipher.jsx';
-import logoImg from './assets/IntelliCloudLogoTransparent.png';
+import logoImg from './assets/IntellicloudLogoTransparent.png';
 
 // --- Icons ---
 const HomeIcon = () => <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>;
@@ -269,7 +269,7 @@ export default function App() {
         return u;
       });
     });
-    return () => { try { unsub && unsub(); } catch {} };
+    return () => { try { unsub && unsub(); } catch {/* */} };
   }, []);
 
   const signOut = async () => { await logout(); setUser(null); setMode(null); };

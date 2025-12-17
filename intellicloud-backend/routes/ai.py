@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import traceback
 from flask import Blueprint, request, jsonify
 import google.generativeai as genai
 
@@ -58,13 +59,13 @@ def chat_with_context():
 
         === YOUR INSTRUCTIONS ===
         1. **Analyze the Port & Protocol**: 
-           - If Port 22 (SSH) or 3389 (RDP): Assume brute-force or unauthorized admin access attempts.
-           - If Port 80/443 (HTTP/S): Assume web-application scanning, SQLi, or XSS probing.
-           - If Port 53 (DNS): Check for tunneling or amplification.
-           - If High Port (>1024): Check if it's a dynamic service or malware C2 callback.
+            - If Port 22 (SSH) or 3389 (RDP): Assume brute-force or unauthorized admin access attempts.
+            - If Port 80/443 (HTTP/S): Assume web-application scanning, SQLi, or XSS probing.
+            - If Port 53 (DNS): Check for tunneling or amplification.
+            - If High Port (>1024): Check if it's a dynamic service or malware C2 callback.
 
         2. **Analyze the Geography**:
-           - Is the traffic coming from a high-risk region or unexpected ISP (e.g., Residential ISP vs Data Center)?
+            - Is the traffic coming from a high-risk region or unexpected ISP (e.g., Residential ISP vs Data Center)?
 
         3. **Analyze the Direction**:
            - **Inbound**: Someone is trying to get IN (Breach attempt).

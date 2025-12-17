@@ -1,6 +1,6 @@
-// src/firebase.js
 import { firebaseEnv } from './config';
 import { initializeApp } from 'firebase/app';
+
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -21,7 +21,7 @@ const app = initializeApp({
 const auth = getAuth(app);
 
 // 2. Real Registration (With Name Saving & Reload)
-const register = async (email, password, first, last, dob) => {
+const register = async (email, password, first, last) => {
   // Create account on Firebase
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
