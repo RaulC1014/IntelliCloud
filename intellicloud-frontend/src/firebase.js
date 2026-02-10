@@ -1,6 +1,5 @@
 import { firebaseEnv } from './config';
 import { initializeApp } from 'firebase/app';
-
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -10,7 +9,6 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
-// 1. Initialize Real Firebase
 const app = initializeApp({
   apiKey: firebaseEnv.apiKey,
   authDomain: firebaseEnv.authDomain,
@@ -20,39 +18,28 @@ const app = initializeApp({
 
 const auth = getAuth(app);
 
-// 2. Real Registration (With Name Saving & Reload)
-const register = async (email, password, first, last) => {
-  // Create account on Firebase
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
-
-  // Save the name immediately
-  if (first && last) {
-    const fullName = `${first} ${last}`;
+const register = async (email, password, first, last, dob) => {
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  const user = cred.user;
+  const fullName = (first && last) ? `${first} ${last}` : null;
+  if (fullName) {
     await updateProfile(user, { displayName: fullName });
-    
-    // CRITICAL FIX: Reload user to ensure the Auth listener sees the new name
     await user.reload();
-    
-    // Force local update on the object reference just in case
-    user.displayName = fullName;
   }
-  
-  return user;
+  return auth.currentUser ?? user;
 };
 
-// 3. Real Login
-const login = (email, password) =>
-  signInWithEmailAndPassword(auth, email, password).then((r) => r.user);
+const login = async (email, password) => {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
+};
 
-// 4. Real Logout
 const logout = () => signOut(auth);
 
-// 5. Helpers
 const getCurrentUser = () => auth.currentUser;
+
 const onAuthStateChangedSub = (cb) => onAuthStateChanged(auth, cb);
 
-// Flag to tell the UI we are in Real Mode
 const isMockAuth = false;
 
-export { register, login, logout, getCurrentUser, onAuthStateChangedSub, isMockAuth };
+export { app, register, login, logout, getCurrentUser, onAuthStateChangedSub, isMockAuth };

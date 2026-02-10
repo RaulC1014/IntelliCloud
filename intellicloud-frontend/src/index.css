@@ -1,5 +1,8 @@
 /* src/index.css */
 /* === IntelliCloud — Premium Theme (Light & Dark) === */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap");
+
 :root {
   /* Default Dark Mode */
   --bg: #0b0f17;
@@ -346,3 +349,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   /* Removed: transform: translateY(-1px); */
   /* Removed: display: inline-block; (now in base class) */
 }
+
+.page-diagnostics .home-kpi {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.page-diagnostics .stat-num { font-weight: 800; font-size: 22px; }
+.page-diagnostics .stat-label { margin-top: 4px; font-size: 12px; color: var(--muted); }
