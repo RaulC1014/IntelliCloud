@@ -1,4 +1,4 @@
-import os, logging
+import os, logging, atexit, signal
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -32,6 +32,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
 
+    
     readers = load_readers()
     app.config["GEO_READERS"] = readers
     app.extensions["geo"] = readers
@@ -46,12 +47,14 @@ def create_app():
             except Exception:
                 pass
 
+    
     secret = _load_secret_key()
     if secret:
         app.config["SECRET_KEY"] = secret
     else:
         logger.warning("SECRET_KEY is not set. Provide FLASK_SECRET_KEY or FLASK_SECRET_KEY_FILE.")
 
+    
     allowed = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
     if not allowed:
         allowed = [
@@ -59,23 +62,29 @@ def create_app():
             "http://127.0.0.1:8080",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            "http://localhost:5174",      
+            "http://localhost:5174",
             "http://127.0.0.1:5174",
             "http://localhost:5175",
-            "http://127.0.0.1:5175"
+            "http://127.0.0.1:5175",
         ]
 
-    CORS(app, resources={r"/api/*": {"origins": allowed, "supports_credentials": True}})
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": allowed, "supports_credentials": True}},
+    )
 
+    # --- Firebase + Limiter (safe init) ---
     try:
         init_firebase_app(app)
     except Exception as exc:
         logger.warning("Firebase init skipped/failed: %s", exc)
+
     try:
         limiter.init_app(app)
     except Exception as exc:
         logger.warning("Limiter init skipped/failed: %s", exc)
 
+    # --- Blueprints ---
     from routes.threats import threats_bp
     from routes.tracker import track_bp
     from routes.collector import collector_bp
@@ -83,20 +92,48 @@ def create_app():
     from routes.traffic import bp as traffic_bp
     from routes.ops import bp as ops_bp
     from routes.audit import bp as audit_bp
+    from routes.aliases import bp as aliases_bp
 
+    # Keep everything consistent under /api
     app.register_blueprint(ai_bp, url_prefix="/api")
     app.register_blueprint(threats_bp, url_prefix="/api")
     app.register_blueprint(track_bp, url_prefix="/api")
     app.register_blueprint(collector_bp, url_prefix="/api")
-    app.register_blueprint(clients_bp, url_prefix="/api")
+    app.register_blueprint(clients_bp, url_prefix="/api")   
     app.register_blueprint(traffic_bp, url_prefix="/api")
     app.register_blueprint(ops_bp, url_prefix="/api")
     app.register_blueprint(audit_bp, url_prefix="/api")
+    app.register_blueprint(aliases_bp, url_prefix="/api")
 
+    # --- Root route ---
     @app.route("/")
     def home():
         return {"message": "Backend is running!"}
+    
+    def _stop_agent_if_running():
+        try:
+            from routes import traffic as traffic_routes
+            proc = getattr(traffic_routes, "AGENT_PROC", None)
+            lock = getattr(traffic_routes, "AGENT_LOCK", None)
+            if lock is None:
+                return
+            with lock:
+                if proc is not None and proc.poll() is None:
+                    if os.name == "nt":
+                        proc.terminate()
+                    else:
+                        proc.send_signal(signal.SIGTERM)
+                    try:
+                        proc.wait(timeout=3)
+                    except Exception:
+                        proc.kill()
+                    traffic_routes.AGENT_PROC = None
+        except Exception:
+            pass
 
+    atexit.register(_stop_agent_if_running)
+
+    # --- Error handlers (JSON) ---
     @app.errorhandler(400)
     def bad_request(e):
         return jsonify({"error": "bad_request", "detail": str(e)}), 400

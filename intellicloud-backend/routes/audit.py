@@ -6,6 +6,11 @@ bp = Blueprint("audit", __name__)
 _log = collections.deque(maxlen=1000)
 _subs = set()
 
+@bp.route("/audit/test", methods=["POST"])
+def test_audit():
+    log_event("dev", "test", "audit", "hello from test endpoint")
+    return jsonify({"ok": True})
+
 # Updated signature to accept level and proto (defaulting to System/Info)
 def log_event(actor: str, action: str, target: str, details: str, level: str = "Info", proto: str = "System"):
     """Call from anywhere to append and broadcast"""

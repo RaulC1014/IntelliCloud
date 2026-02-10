@@ -1,11 +1,13 @@
+import psycopg2
+import os
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import BadRequest
 from ipaddress import ip_address
-import psycopg2
-import os
 from models.db import get_db_connection, put_db_connection
 from models.tracker import log_visitor_ip           # raw IP visit log
-from services.detections import eval_event           # rule engine → alerts/threats
+from services.rules_engine import eval_event 
+
+          # rule engine → alerts/threats
 
 collector_bp = Blueprint("collector", __name__, url_prefix="/api/collect")
 try:

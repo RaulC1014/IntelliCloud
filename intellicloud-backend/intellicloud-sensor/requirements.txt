@@ -1,0 +1,5 @@
+requests
+pcapy-ng
+dpkt
+python-dotenv
+psutil

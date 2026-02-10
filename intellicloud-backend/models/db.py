@@ -58,6 +58,3 @@ def put_db_connection(conn):
     if conn:
         conn.close()
 
-#project_id = "cloudintel"
-
-#psycopg2.connect("postgresql://postgres:postgres123@localhost:5433/cloudintel")
