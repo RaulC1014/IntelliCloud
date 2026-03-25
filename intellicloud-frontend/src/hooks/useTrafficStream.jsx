@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { API_BASE_URL } from "../config"; 
 
 function withQuery(path, params) {
-  const url = new URL(path, window.location.origin);
+  const baseUrl = API_BASE_URL || window.location.origin;
+  const url = new URL(path, baseUrl);
+  
   Object.entries(params || {}).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
-    url.searchParams.set(k, String(v));
+    url.searchParams.append(k, v);
   });
-  return url.pathname + url.search;
+  return url.toString();
 }
 
 export default function useTrafficStream({

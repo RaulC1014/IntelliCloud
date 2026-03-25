@@ -1,5 +1,12 @@
-export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true';
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const isElectron = window.location.protocol === 'file:';
+
+// 2. If desktop, turn off mock data so it talks to the real Python backend
+export const USE_MOCK = isElectron ? false : (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true';
+
+// 3. If desktop, force the API to point to your local Python server instead of the hard drive
+export const API_BASE_URL = isElectron 
+  ? 'http://127.0.0.1:5000' 
+  : (import.meta.env.VITE_API_BASE_URL || '');
 
 export const VITE_CLIENT_KEY = import.meta.env.VITE_CLIENT_KEY || '';
 

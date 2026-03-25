@@ -177,7 +177,7 @@ function useThreats() {
     let active = true;
     (async () => {
       try {
-        const url = USE_MOCK ? "/mock/threats.json" : api("/threats");
+        const url = USE_MOCK ? '/mock/threats.json' : `${API_BASE_URL}/api/threats`;
         const res = await fetch(url);
         const data = await res.json();
         if (active) setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
