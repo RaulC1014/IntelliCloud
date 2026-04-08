@@ -10,6 +10,9 @@ venv
 *.keystore
 firebase*.json
 serviceAccountKey.json
+**/.venv/
+**/venv/
+
 
 # app caches
 __pycache__/

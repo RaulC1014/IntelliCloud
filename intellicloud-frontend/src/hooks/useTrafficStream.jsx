@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { API_BASE_URL } from "../config"; 
-
-function withQuery(path, params) {
-  const baseUrl = API_BASE_URL || window.location.origin;
-  const url = new URL(path, baseUrl);
-  
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    url.searchParams.append(k, v);
-  });
-  return url.toString();
-}
+import { buildSseUrl } from "../api/http";
 
 export default function useTrafficStream({
-  path = "/api/traffic/stream",
+  path = "traffic/stream",
   enabled = true,
   maxRows = 500,
   flushMs = 150,
@@ -30,7 +19,6 @@ export default function useTrafficStream({
   const flushTimerRef = useRef(null);
   const lastIdRef = useRef(0);
 
-  // Load last cursor from localStorage once per storageKey
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
     const n = saved != null ? Number(saved) : 0;
@@ -43,6 +31,7 @@ export default function useTrafficStream({
     flushTimerRef.current = null;
     const chunk = bufRef.current;
     bufRef.current = [];
+
     if (!chunk.length) return;
 
     setRows((prev) => {
@@ -57,38 +46,50 @@ export default function useTrafficStream({
     flushTimerRef.current = window.setTimeout(flush, flushMs);
   }, [flush, flushMs]);
 
-  
   useEffect(() => {
-    
-    try { esRef.current?.close(); } catch {}
+    if (esRef.current) {
+      try {
+        esRef.current.close();
+      } catch (error) {
+        console.warn("useTrafficStream: failed to close previous EventSource", error);
+      }
+    }
+
     esRef.current = null;
     setConnected(false);
 
-    
     if (!enabled) {
       if (bufRef.current.length) scheduleFlush();
       return;
     }
 
-    
     if (!clientKey) {
       if (bufRef.current.length) scheduleFlush();
       return;
     }
 
     const since =
-      sinceProp !== null && sinceProp !== undefined ? sinceProp : (lastIdRef.current || 0);
+      sinceProp !== null && sinceProp !== undefined
+        ? sinceProp
+        : (lastIdRef.current || 0);
 
-    const url = withQuery(path, { since, client_key: clientKey });
+    const url = buildSseUrl(path, {
+      since,
+      client_key: clientKey,
+    });
 
     const es = new EventSource(url);
     esRef.current = es;
 
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
+    es.onopen = () => {
+      setConnected(true);
+    };
+
+    es.onerror = () => {
+      setConnected(false);
+    };
 
     es.onmessage = (evt) => {
-      
       if (evt.lastEventId) {
         const n = Number(evt.lastEventId);
         if (Number.isFinite(n)) {
@@ -101,7 +102,6 @@ export default function useTrafficStream({
       try {
         const data = JSON.parse(evt.data);
 
-        
         if (data && data.id != null) {
           const n = Number(data.id);
           if (Number.isFinite(n)) {
@@ -113,14 +113,25 @@ export default function useTrafficStream({
 
         bufRef.current.push(data);
         scheduleFlush();
-      } catch {
-       
+      } catch (error) {
+        console.warn("useTrafficStream: failed to parse SSE payload", {
+          error,
+          rawData: evt?.data,
+        });
       }
     };
 
     return () => {
       setConnected(false);
-      try { es.close(); } catch {}
+
+      if (esRef.current) {
+        try {
+          esRef.current.close();
+        } catch (error) {
+          console.warn("useTrafficStream: failed to close EventSource during cleanup", error);
+        }
+      }
+
       esRef.current = null;
     };
   }, [enabled, path, sinceProp, storageKey, clientKey, scheduleFlush]);
@@ -128,6 +139,7 @@ export default function useTrafficStream({
   const clear = useCallback(() => {
     setRows([]);
     bufRef.current = [];
+
     if (flushTimerRef.current) {
       clearTimeout(flushTimerRef.current);
       flushTimerRef.current = null;

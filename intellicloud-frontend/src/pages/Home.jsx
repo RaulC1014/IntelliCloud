@@ -1,6 +1,5 @@
 // src/pages/Home.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { USE_MOCK, API_BASE_URL } from '../config';
 import logoImg from '../assets/IntellicloudLogoTransparent.png';
 
 // --- Icons ---
