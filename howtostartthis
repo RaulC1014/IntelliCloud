@@ -1,0 +1,7 @@
+run docker compose up -d --build
+
+then
+
+sudo intellicloud-backend/intellicloud-sensor/.venv/bin/python \
+intellicloud-backend/intellicloud-sensor/ic_agent.py
+

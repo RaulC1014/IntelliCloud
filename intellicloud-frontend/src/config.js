@@ -1,7 +1,11 @@
-export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true';
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "false") === "true";
 
-export const VITE_CLIENT_KEY = import.meta.env.VITE_CLIENT_KEY || '';
+export const API_ORIGIN =
+  import.meta.env.VITE_API_ORIGIN || "http://localhost:5000";
+
+export const API_PREFIX = "/api";
+
+export const VITE_CLIENT_KEY = import.meta.env.VITE_CLIENT_KEY || "";
 
 export const firebaseEnv = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,

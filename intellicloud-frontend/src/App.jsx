@@ -1,51 +1,104 @@
-import React, { useEffect, useState } from "react";
-import { register, login, logout, getCurrentUser, onAuthStateChangedSub } from "./firebase";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  register,
+  login,
+  logout,
+  getCurrentUser,
+  onAuthStateChangedSub,
+} from "./firebase";
+
 import Home from "./pages/Home.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Decipher from "./pages/Decipher.jsx";
-import Diagnostics from "./pages/Disgnostics.jsx";
+import Devices from "./pages/Devices.jsx";
+import LogAnalyzer from "./pages/LogAnalyzer.jsx";
+import PcapParser from "./pages/PcapParser.jsx";
+
 import logoImg from "./assets/IntellicloudLogoTransparent.png";
 
-const HomeIcon = () => <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>;
-const DashboardIcon = () => <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>;
-const DecipherIcon = () => <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>;
+const IDLE_LOGOUT_MS = 15 * 60 * 1000;
+
+const HomeIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+  </svg>
+);
+
+const DashboardIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+  </svg>
+);
+
+const DecipherIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+  </svg>
+);
+
+const DevicesIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 6h16a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-6v2h2a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h2v-2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v7h16V8H4zm3 3a1 1 0 1 0 0 .001V11zm3 0a1 1 0 1 0 0 .001V11z" />
+  </svg>
+);
+
+const LogAnalyzerIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM8 11h8a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2zm0 4h8a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2zm0 4h5a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2z" />
+  </svg>
+);
+
+const PcapParserIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 5h16a2 2 0 0 1 2 2v4h-2V7H4v10h7v2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm12 7 6 3.5-6 3.5V16h-5v-1h5v-3z" />
+  </svg>
+);
 
 function useSystemTheme() {
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
+
     const applyTheme = (e) => {
-      if (e.matches) document.documentElement.setAttribute("data-theme", "light");
-      else document.documentElement.removeAttribute("data-theme");
+      if (e.matches) {
+        document.documentElement.setAttribute("data-theme", "light");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
     };
+
     applyTheme(mediaQuery);
     mediaQuery.addEventListener("change", applyTheme);
+
     return () => mediaQuery.removeEventListener("change", applyTheme);
   }, []);
 }
 
-const BackgroundWatermark = () => (
-  <div
-    style={{
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      width: "100vw",
-      height: "100vh",
-      backgroundImage: `url(${logoImg})`,
-      backgroundRepeat: "no-repeat",
-      backgroundPosition: "center",
-      backgroundSize: "800px",
-      opacity: "var(--logo-opacity)",
-      zIndex: 0,
-      pointerEvents: "none",
-      transition: "opacity 0.5s ease",
-    }}
-  />
-);
+function BackgroundWatermark() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "100vw",
+        height: "100vh",
+        backgroundImage: `url(${logoImg})`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize: "800px",
+        opacity: "var(--logo-opacity)",
+        zIndex: 0,
+        pointerEvents: "none",
+        transition: "opacity 0.5s ease",
+      }}
+    />
+  );
+}
 
 function BootSequence({ onComplete }) {
   const [step, setStep] = useState(0);
+
   useEffect(() => {
     const timers = [
       setTimeout(() => setStep(1), 600),
@@ -53,18 +106,31 @@ function BootSequence({ onComplete }) {
       setTimeout(() => setStep(3), 2200),
       setTimeout(() => onComplete(), 2600),
     ];
+
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
+
   const steps = [
     "Establishing secure handshake...",
     "Verifying cryptographic keys...",
     "Synchronizing user profile...",
     "Access Granted.",
   ];
+
   return (
-    <div className="center animate-fade" style={{ flexDirection: "column", gap: 24, zIndex: 10 }}>
+    <div
+      className="center animate-fade"
+      style={{ flexDirection: "column", gap: 24, zIndex: 10 }}
+    >
       <div style={{ position: "relative", width: 60, height: 60 }}>
-        <div style={{ position: "absolute", inset: 0, border: "4px solid var(--border)", borderRadius: "50%" }} />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            border: "4px solid var(--border)",
+            borderRadius: "50%",
+          }}
+        />
         <div
           style={{
             position: "absolute",
@@ -76,17 +142,26 @@ function BootSequence({ onComplete }) {
           }}
         />
       </div>
+
       <div className="mono" style={{ color: "var(--brand)", fontSize: 14, minHeight: 20 }}>
         {steps[step]}
       </div>
-      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
 
 function Landing({ onShowLogin, onShowRegister }) {
   const [show, setShow] = useState(false);
+
   useEffect(() => setShow(true), []);
+
   return (
     <div
       className={`center animate-fade ${show ? "show" : ""}`}
@@ -102,6 +177,7 @@ function Landing({ onShowLogin, onShowRegister }) {
       }}
     >
       <BackgroundWatermark />
+
       <div
         className="animate-slide"
         style={{ position: "relative", zIndex: 1, maxWidth: 900, padding: 20 }}
@@ -120,6 +196,7 @@ function Landing({ onShowLogin, onShowRegister }) {
             zIndex: -1,
           }}
         />
+
         <div
           style={{
             display: "flex",
@@ -138,6 +215,7 @@ function Landing({ onShowLogin, onShowRegister }) {
               filter: "drop-shadow(0 0 25px rgba(62, 123, 255, 0.4))",
             }}
           />
+
           <h1
             className="h1 text-alive"
             style={{
@@ -147,12 +225,13 @@ function Landing({ onShowLogin, onShowRegister }) {
               lineHeight: 1,
               fontWeight: 900,
               fontFamily:
-                '"DM Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif'
+                '"DM Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
             }}
           >
             IntelliCloud
           </h1>
         </div>
+
         <p
           className="p-muted"
           style={{
@@ -164,6 +243,7 @@ function Landing({ onShowLogin, onShowRegister }) {
         >
           Next-Generation Threat Intelligence.
         </p>
+
         <div
           style={{
             display: "flex",
@@ -184,6 +264,7 @@ function Landing({ onShowLogin, onShowRegister }) {
           >
             Get Started
           </button>
+
           <button
             className="btn"
             style={{
@@ -198,11 +279,11 @@ function Landing({ onShowLogin, onShowRegister }) {
             Login
           </button>
         </div>
+
         <p
           className="p-muted"
           style={{
-            margin: "0 auto",
-            marginTop: 60,
+            margin: "60px auto 0",
             fontSize: 14,
             letterSpacing: "0.2px",
             opacity: 0.85,
@@ -217,34 +298,58 @@ function Landing({ onShowLogin, onShowRegister }) {
 }
 
 function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
+  const isLogin = mode === "login";
+
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [dob, setDob] = useState("");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [booting, setBooting] = useState(false);
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
-  const isLogin = mode === "login";
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError("");
+
     try {
-      const user = isLogin ? await login(email, pw) : await register(email, pw, first.trim(), last.trim(), dob);
+      const user = isLogin
+        ? await login(email, pw)
+        : await register(email, pw, first.trim(), last.trim(), dob);
+
       setAuthenticatedUser(user);
       setBooting(true);
     } catch (err) {
       let msg = "An unexpected error occurred.";
       const code = err?.code;
-      if (code === "auth/email-already-in-use") msg = "That email is already in use. Please log in.";
-      else if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") msg = "Incorrect email or password.";
-      else if (code === "auth/weak-password") msg = "Password must be at least 6 characters.";
-      else if (code === "auth/invalid-email") msg = "Please enter a valid email address.";
-      else if (code === "auth/too-many-requests") msg = "Too many attempts. Please try again later.";
-      else msg = err?.message ? err.message.replace("Firebase: ", "").replace("Error (", "").replace(").", "") : String(err);
+
+      if (code === "auth/email-already-in-use") {
+        msg = "That email is already in use. Please log in.";
+      } else if (
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found"
+      ) {
+        msg = "Incorrect email or password.";
+      } else if (code === "auth/weak-password") {
+        msg = "Password must be at least 6 characters.";
+      } else if (code === "auth/invalid-email") {
+        msg = "Please enter a valid email address.";
+      } else if (code === "auth/too-many-requests") {
+        msg = "Too many attempts. Please try again later.";
+      } else {
+        msg = err?.message
+          ? err.message
+              .replace("Firebase: ", "")
+              .replace("Error (", "")
+              .replace(").", "")
+          : String(err);
+      }
+
       setError(msg);
       setBusy(false);
     }
@@ -252,7 +357,10 @@ function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
 
   if (booting) {
     return (
-      <div className="center animate-fade" style={{ position: "relative", overflow: "hidden", minHeight: "100vh" }}>
+      <div
+        className="center animate-fade"
+        style={{ position: "relative", overflow: "hidden", minHeight: "100vh" }}
+      >
         <BackgroundWatermark />
         <BootSequence onComplete={() => onAuthed(authenticatedUser)} />
       </div>
@@ -260,14 +368,41 @@ function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
   }
 
   return (
-    <div className="center animate-fade" style={{ position: "relative", overflow: "hidden", minHeight: "100vh" }}>
+    <div
+      className="center animate-fade"
+      style={{ position: "relative", overflow: "hidden", minHeight: "100vh" }}
+    >
       <BackgroundWatermark />
-      <div className="card animate-slide" style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 480, padding: 40, borderRadius: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+
+      <div
+        className="card animate-slide"
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 480,
+          padding: 40,
+          borderRadius: 24,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+          }}
+        >
           <h2 className="h1" style={{ fontSize: 26, margin: 0 }}>
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
-          <button className="btn icon-only" onClick={onBack} style={{ background: "transparent", border: "none", fontSize: 20 }}>
+
+          <button
+            className="btn icon-only"
+            onClick={onBack}
+            style={{ background: "transparent", border: "none", fontSize: 20 }}
+            aria-label="Close authentication form"
+          >
             ✕
           </button>
         </div>
@@ -278,37 +413,93 @@ function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div>
                   <label className="label">First name</label>
-                  <input className="input" placeholder="Jane" value={first} onChange={(e) => setFirst(e.target.value)} required />
+                  <input
+                    className="input"
+                    placeholder="Jane"
+                    value={first}
+                    onChange={(e) => setFirst(e.target.value)}
+                    required
+                    autoComplete="given-name"
+                  />
                 </div>
+
                 <div>
                   <label className="label">Last name</label>
-                  <input className="input" placeholder="Doe" value={last} onChange={(e) => setLast(e.target.value)} required />
+                  <input
+                    className="input"
+                    placeholder="Doe"
+                    value={last}
+                    onChange={(e) => setLast(e.target.value)}
+                    required
+                    autoComplete="family-name"
+                  />
                 </div>
               </div>
+
               <div style={{ marginTop: 16 }}>
                 <label className="label">Date of Birth</label>
-                <input className="input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} required />
+                <input
+                  className="input"
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  required
+                />
               </div>
             </>
           )}
 
           <div style={{ marginTop: 16 }}>
             <label className="label">Email</label>
-            <input className="input" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input
+              className="input"
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              spellCheck={false}
+            />
           </div>
 
           <div style={{ marginTop: 16 }}>
             <label className="label">Password</label>
-            <input className="input" type="password" placeholder="••••••••" value={pw} onChange={(e) => setPw(e.target.value)} required />
+            <input
+              className="input"
+              type="password"
+              placeholder="••••••••"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              required
+              autoComplete={isLogin ? "current-password" : "new-password"}
+            />
           </div>
 
           <div style={{ marginTop: 32 }}>
-            <button className="btn primary" style={{ width: "100%", justifyContent: "center", padding: 14, fontSize: 16, borderRadius: 12 }} disabled={busy}>
+            <button
+              className="btn primary"
+              style={{
+                width: "100%",
+                justifyContent: "center",
+                padding: 14,
+                fontSize: 16,
+                borderRadius: 12,
+              }}
+              disabled={busy}
+            >
               {busy ? "Processing..." : isLogin ? "Login" : "Create Account"}
             </button>
           </div>
 
-          <div style={{ marginTop: 24, textAlign: "center", fontSize: 14, color: "var(--muted)" }}>
+          <div
+            style={{
+              marginTop: 24,
+              textAlign: "center",
+              fontSize: 14,
+              color: "var(--muted)",
+            }}
+          >
             {isLogin ? (
               <span>
                 Don&apos;t have an account?{" "}
@@ -327,7 +518,10 @@ function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
           </div>
 
           {error && (
-            <div className="badge crit" style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
+            <div
+              className="badge crit"
+              style={{ marginTop: 16, display: "flex", justifyContent: "center" }}
+            >
               {error}
             </div>
           )}
@@ -339,6 +533,38 @@ function InlineAuth({ mode, onAuthed, onBack, onSwitchMode }) {
 
 function AppShell({ user, onSignOut }) {
   const [tab, setTab] = useState("home");
+
+  const tabs = useMemo(
+    () => [
+      { id: "home", label: "Home", Icon: HomeIcon },
+      { id: "dashboard", label: "Dashboard", Icon: DashboardIcon },
+      { id: "decipher", label: "Decipher", Icon: DecipherIcon },
+      { id: "devices", label: "Devices", Icon: DevicesIcon },
+      { id: "log-analyzer", label: "Log Analyzer", Icon: LogAnalyzerIcon },
+      { id: "pcapparser", label: "PCAP Parser", Icon: PcapParserIcon },
+    ],
+    []
+  );
+
+  const renderTab = () => {
+    switch (tab) {
+      case "home":
+        return <Home user={user} />;
+      case "dashboard":
+        return <Dashboard />;
+      case "decipher":
+        return <Decipher />;
+      case "devices":
+        return <Devices />;
+      case "log-analyzer":
+        return <LogAnalyzer />;
+      case "pcapparser":
+        return <PcapParser/>
+      default:
+        return <Home user={user} />;
+    }
+  };
+
   return (
     <div className="container animate-fade">
       <div className="header" style={{ marginBottom: 24 }}>
@@ -349,25 +575,27 @@ function AppShell({ user, onSignOut }) {
               IntelliCloud
             </span>
           </div>
+
           <div className="tabs">
-            <button className={`tab ${tab === "home" ? "active" : ""}`} onClick={() => setTab("home")}>
-              <HomeIcon /> <span>Home</span>
-            </button>
-            <button className={`tab ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>
-              <DashboardIcon /> <span>Dashboard</span>
-            </button>
-            <button className={`tab ${tab === "decipher" ? "active" : ""}`} onClick={() => setTab("decipher")}>
-              <DecipherIcon /> <span>Decipher</span>
-            </button>
-            <button className={`tab ${tab === "diagnostics" ? "active" : ""}`} onClick={() => setTab("diagnostics")}>
-              <span>Diagnostics</span>
-            </button>
+                        {tabs.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  className={`tab ${tab === id ? "active" : ""}`}
+                  onClick={() => setTab(id)}
+                  aria-current={tab === id ? "page" : undefined}
+                >
+                  {Icon ? <Icon /> : null}
+                  <span>{label}</span>
+                </button>
+              ))}
           </div>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="p-muted" style={{ margin: 0, fontSize: 14 }}>
             {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
           </span>
+
           <button className="btn" onClick={onSignOut}>
             Sign out
           </button>
@@ -375,10 +603,7 @@ function AppShell({ user, onSignOut }) {
       </div>
 
       <div style={{ height: 10 }} />
-      {tab === "home" && <Home user={user} />}
-      {tab === "dashboard" && <Dashboard />}
-      {tab === "decipher" && <Decipher />}
-      {tab === "diagnostics" && <Diagnostics />}
+      {renderTab()}
     </div>
   );
 }
@@ -386,6 +611,7 @@ function AppShell({ user, onSignOut }) {
 export default function App() {
   const [mode, setMode] = useState(null);
   const [user, setUser] = useState(() => getCurrentUser());
+
   useSystemTheme();
 
   useEffect(() => {
@@ -397,18 +623,78 @@ export default function App() {
         return u;
       });
     });
+
     return () => {
-      try { unsub && unsub(); } catch {}
+      if (typeof unsub === "function") {
+        try {
+          unsub();
+        } catch (err) {
+          console.error("Failed to unsubscribe from auth state changes:", err);
+        }
+      }
     };
   }, []);
 
-  const signOut = async () => {
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let timeoutId;
+
+    const resetIdleTimer = () => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(async () => {
+        try {
+          await logout();
+        } catch (err) {
+          console.error("Auto sign-out failed:", err);
+        } finally {
+          setUser(null);
+          setMode(null);
+        }
+      }, IDLE_LOGOUT_MS);
+    };
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+    events.forEach((eventName) => {
+      window.addEventListener(eventName, resetIdleTimer, { passive: true });
+    });
+
+    resetIdleTimer();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      events.forEach((eventName) => {
+        window.removeEventListener(eventName, resetIdleTimer);
+      });
+    };
+  }, [user]);
+
+  const signOut = useCallback(async () => {
     await logout();
     setUser(null);
     setMode(null);
-  };
+  }, []);
 
-  if (user) return <AppShell user={user} onSignOut={signOut} />;
-  if (mode) return <InlineAuth mode={mode} onAuthed={setUser} onBack={() => setMode(null)} onSwitchMode={setMode} />;
-  return <Landing onShowLogin={() => setMode("login")} onShowRegister={() => setMode("register")} />;
+  if (user) {
+    return <AppShell user={user} onSignOut={signOut} />;
+  }
+
+  if (mode) {
+    return (
+      <InlineAuth
+        mode={mode}
+        onAuthed={setUser}
+        onBack={() => setMode(null)}
+        onSwitchMode={setMode}
+      />
+    );
+  }
+
+  return (
+    <Landing
+      onShowLogin={() => setMode("login")}
+      onShowRegister={() => setMode("register")}
+    />
+  );
 }

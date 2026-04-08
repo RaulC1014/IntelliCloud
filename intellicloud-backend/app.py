@@ -1,5 +1,5 @@
 import os, logging, atexit, signal
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -9,6 +9,7 @@ from extensions import limiter
 from auth import init_firebase_app
 from services.geo import load_readers
 from routes.ai import ai_bp
+from routes.alerts import bp as alerts_bp
 
 CITY_DB = os.environ.get("GEOIP_CITY_DB", "/data/GeoLite2-City.mmdb")
 ASN_DB  = os.environ.get("GEOIP_ASN_DB",  "/data/GeoLite2-ASN.mmdb")
@@ -73,6 +74,29 @@ def create_app():
         resources={r"/api/*": {"origins": allowed, "supports_credentials": True}},
     )
 
+    @app.after_request
+    def add_dev_cors_headers(response):
+        origin = request.headers.get("Origin")
+        localhost_origins = {
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+            "http://localhost:5175",
+            "http://127.0.0.1:5175",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+        }
+
+        if origin and (origin in allowed or origin in localhost_origins):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response.headers["Vary"] = "Origin"
+
+        return response
+
     # --- Firebase + Limiter (safe init) ---
     try:
         init_firebase_app(app)
@@ -91,10 +115,11 @@ def create_app():
     from routes.clients import clients_bp
     from routes.traffic import bp as traffic_bp
     from routes.ops import bp as ops_bp
-    from routes.audit import bp as audit_bp
     from routes.aliases import bp as aliases_bp
+    from routes.assets import bp as assets_bp
 
     # Keep everything consistent under /api
+    app.register_blueprint(assets_bp, url_prefix="/api")
     app.register_blueprint(ai_bp, url_prefix="/api")
     app.register_blueprint(threats_bp, url_prefix="/api")
     app.register_blueprint(track_bp, url_prefix="/api")
@@ -102,8 +127,8 @@ def create_app():
     app.register_blueprint(clients_bp, url_prefix="/api")   
     app.register_blueprint(traffic_bp, url_prefix="/api")
     app.register_blueprint(ops_bp, url_prefix="/api")
-    app.register_blueprint(audit_bp, url_prefix="/api")
     app.register_blueprint(aliases_bp, url_prefix="/api")
+    app.register_blueprint(alerts_bp, url_prefix="/api")
 
     # --- Root route ---
     @app.route("/")

@@ -289,9 +289,16 @@ def flow_flush_thread(flow_table: FlowTable, q: "queue.Queue[Dict[str, Any]]", i
             if hint:
                 ev["app"] = hint
             try:
-                q.put_nowait(ev)
+                nev = _normalize_for_backend(ev)
+                print("[flow-debug]", json.dumps(nev, default=str))
+                q.put_nowait(nev)
             except queue.Full:
                 pass
+            except Exception as e:
+                print(f"[flow-flush-error] {e}")
+            
+
+
 
 
 # -------------------------
@@ -577,7 +584,7 @@ def main() -> int:
                 return
             nev = _normalize_for_backend(ev)
             try:
-                q.put_nowait(ev)
+                q.put_nowait(nev)
             except queue.Full:
                 pass
             return
@@ -587,7 +594,7 @@ def main() -> int:
         for ev in evs:
             nev = _normalize_for_backend(ev)
             try:
-                q.put_nowait(ev)
+                q.put_nowait(nev)
             except queue.Full:
                 break
 
@@ -599,6 +606,42 @@ def main() -> int:
         stop.set()
 
     return 0
+
+def classify_zone(ip: str) -> str:
+    if not ip:
+        return "unknown"
+
+    if ip.startswith("172.18.") or ip.startswith("172.17."):
+        return "docker"
+
+    if ip.startswith("10.") or ip.startswith("192.168."):
+        return "private"
+
+    if ip.startswith("172."):
+        try:
+            second = int(ip.split(".")[1])
+            if 16 <= second <= 31:
+                return "private"
+        except Exception:
+            pass
+
+    if ":" in ip:
+        lowered = ip.lower()
+        if lowered.startswith("fe80:"):
+            return "link-local-ipv6"
+        if lowered.startswith("fd") or lowered.startswith("fc"):
+            return "private-ipv6"
+        return "public-ipv6"
+
+    return "public"
+
+
+def build_sensor_id(iface: str) -> str:
+    explicit = os.getenv("IC_SENSOR_ID", "").strip()
+    if explicit:
+        return explicit
+    return f"sensor-{iface or 'unknown'}"
+
 
 def _normalize_for_backend(ev: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(ev)
@@ -624,7 +667,7 @@ def _normalize_for_backend(ev: Dict[str, Any]) -> Dict[str, Any]:
     if "dns_qname" in ev and ev["dns_qname"]:
         out["dns"] = ev["dns_qname"]
 
-    # direction → dir (optional; backend can infer, but harmless to supply)
+    # direction → dir
     if "direction" in ev:
         out["dir"] = ev["direction"]
 
@@ -635,9 +678,32 @@ def _normalize_for_backend(ev: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pass
 
+    # Sensor identity
+    iface = str(ev.get("iface") or "")
+    out["sensor_id"] = build_sensor_id(iface)
+
+    # Zone tagging
+    src = out.get("src")
+    dst = out.get("dst")
+
+    src_zone = classify_zone(src) if src else "unknown"
+    dst_zone = classify_zone(dst) if dst else "unknown"
+
+    out["src_zone"] = src_zone
+    out["dst_zone"] = dst_zone
+
+    # High-level scope for easier UI filtering
+    zones = {src_zone, dst_zone}
+    if "docker" in zones:
+        out["network_scope"] = "docker"
+    elif any(z in zones for z in ("private", "private-ipv6", "link-local-ipv6")):
+        out["network_scope"] = "private"
+    elif any(z in zones for z in ("public", "public-ipv6")):
+        out["network_scope"] = "public"
+    else:
+        out["network_scope"] = "unknown"
+    
     return out
-
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

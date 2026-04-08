@@ -80,9 +80,7 @@ def collect_ip():
     except Exception as e:
         return jsonify({"error": "log_write_failed", "detail": str(e)}), 500
 
-    # === [FIX 2] PUSH TO LIVE STREAM ===
     try:
-        # We create a dictionary that matches what the Frontend expects
         live_data = {
             "id": raw_log_row.get("id"),
             "src_ip": ip,
@@ -96,7 +94,7 @@ def collect_ip():
         print(f"[DEBUG] Pushed to queue: {ip}") # Print so you can see it working
     except Exception as e:
         print(f"[ERROR] Queue push failed: {e}")
-    # ===================================
+ 
 
     # 2) Evaluate Threats
     try:
