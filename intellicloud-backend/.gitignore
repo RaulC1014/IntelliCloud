@@ -24,5 +24,10 @@ __pycache__/
 .env
 .env.*
 
+node_modules/
+dist/
+out/
+.DS_Store
+
 # Others
 intellicloud-backend/data/*.mmdb

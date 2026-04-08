@@ -16,7 +16,11 @@ serviceAccountKey.json
 
 # app caches
 __pycache__/
-node_modules/
+**/node_modules/
+**/dist/
+**/out/
+**/.DS_Store
+**/release/
 
 # MaxMind DBs
 intellicloud-backend/data/*.mmdb
