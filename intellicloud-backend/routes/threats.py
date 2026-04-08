@@ -28,7 +28,7 @@ def is_valid_ipv4(ip: str) -> bool:
 def ping():
     return jsonify({"ok": True, "service": "threats"}), 200
 
-@threats_bp.route("/public", methods=["GET"])
+@threats_bp.route("/threats/public", methods=["GET"])
 def public_threats():
 
     ip = request.args.get("ip")
@@ -36,7 +36,7 @@ def public_threats():
     data = get_threats_from_db(ip, threat_level)
     return jsonify(data), 200
 
-@threats_bp.route("/", methods=["GET"])
+@threats_bp.route("/threats", methods=["GET"])
 @require_auth
 @limiter.limit("10 per minute")
 def list_threats():
@@ -102,7 +102,7 @@ def add_threat():
     }), 201
 
 
-@threats_bp.route("/<int:threat_id>", methods=["GET"])
+@threats_bp.route("/threats/<int:threat_id>", methods=["GET"])
 @require_auth
 def get_threat_by_id(threat_id):
 
@@ -114,7 +114,7 @@ def get_threat_by_id(threat_id):
     return jsonify({"error": "Threat not found"}), 404
 
 
-@threats_bp.route("/<int:threat_id>", methods=["DELETE"])
+@threats_bp.route("/threats/<int:threat_id>", methods=["DELETE"])
 @require_auth
 def delete_threat(threat_id):
 
@@ -126,7 +126,7 @@ def delete_threat(threat_id):
     return jsonify({"error": f"Threat {threat_id} not found"}), 404
 
 
-@threats_bp.route("/<int:threat_id>", methods=["PATCH"])
+@threats_bp.route("/threats/<int:threat_id>", methods=["PATCH"])
 @require_auth
 def update_threat(threat_id):
 
@@ -139,7 +139,7 @@ def update_threat(threat_id):
     return jsonify({"error": f"Threat {threat_id} not found or no valid fields provided"}), 404
 
 
-@threats_bp.route("/audit-log", methods=["GET"])
+@threats_bp.route("/threats/audit-log", methods=["GET"])
 @require_role("admin")
 def list_audit_logs():
 

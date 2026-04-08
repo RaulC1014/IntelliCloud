@@ -3,3 +3,7 @@ pcapy-ng
 dpkt
 python-dotenv
 psutil
+pcapy-ng
+scapy
+requests
+psutil

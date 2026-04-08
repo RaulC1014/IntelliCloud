@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { USE_MOCK, API_BASE_URL } from "../config";
-import { mapThreat } from "../adapters";
+import { USE_MOCK, } from "../config";
 import { agentStart, agentStop } from "../api/agent";
+import { apiFetch, apiUrl } from "../api/http";
+import { mapThreat } from "../adapters";
 import useTrafficStream from "../hooks/useTrafficStream";
 
 const FilterIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-    </svg>
-  );
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+  </svg>
+);
+
 const DownloadIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -16,12 +18,14 @@ const DownloadIcon = () => (
     <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
+
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
+
 const RefreshIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M23 4v6h-6" />
@@ -29,6 +33,7 @@ const RefreshIcon = () => (
     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
   </svg>
 );
+
 const SparklesIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 2L9.91 8.26 3.65 10.35 9.91 12.44 12 18.7 14.09 12.44 20.35 10.35 14.09 8.26 12 2z" />
@@ -36,7 +41,7 @@ const SparklesIcon = () => (
 );
 
 const levels = ["All", "Critical", "High", "Medium", "Low", "Info"];
-const protocols = ["All", "System", "TCP", "UDP", "HTTP", "HTTPS", "SSH"];
+const alertStatuses = ["All", "open", "acknowledged", "closed"];
 
 const levelBadge = (lvl) => {
   const key = (lvl || "").toLowerCase();
@@ -46,8 +51,6 @@ const levelBadge = (lvl) => {
   if (key === "low") return "badge low";
   return "badge ok";
 };
-
-const api = (p) => `${API_BASE_URL.replace(/\/+$/, "")}${p.startsWith("/") ? "" : "/"}${p}`;
 
 function AIAgentPanel({ selectedData, onClose }) {
   const [messages, setMessages] = useState([]);
@@ -74,8 +77,9 @@ function AIAgentPanel({ selectedData, onClose }) {
     setMessages(newHistory);
     setInput("");
     setLoading(true);
+
     try {
-      const res = await fetch(api("/chat"), {
+      const res = await fetch(apiUrl("chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context: contextOverride || selectedData, messages: newHistory }),
@@ -83,8 +87,12 @@ function AIAgentPanel({ selectedData, onClose }) {
       const data = await res.json();
       if (data.error) throw new Error(data.detail || "API Error");
       setMessages((prev) => [...prev, { role: "model", content: data.response }]);
-    } catch {
-      setMessages((prev) => [...prev, { role: "model", content: "⚠️ Connection lost. Unable to reach neural core." }]);
+    } catch (error) {
+      console.error("AI agent request failed:", error);
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", content: "⚠️ Connection lost. Unable to reach neural core." },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -173,57 +181,154 @@ function AIAgentPanel({ selectedData, onClose }) {
 
 function useThreats() {
   const [raw, setRaw] = useState([]);
+
   useEffect(() => {
     let active = true;
+
     (async () => {
       try {
-        const url = USE_MOCK ? "/mock/threats.json" : api("/threats");
+        const url = USE_MOCK ? "/mock/threats.json" : apiUrl("threats/public");
         const res = await fetch(url);
+
+        if (!res.ok) {
+          throw new Error(`Threat fetch failed with status ${res.status}`);
+        }
+
         const data = await res.json();
-        if (active) setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
-      } catch {
+
+        if (active) {
+          setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
+        }
+      } catch (error) {
+        console.error("Threat fetch failed:", error);
         if (active) setRaw([]);
       }
     })();
+
     return () => {
       active = false;
     };
   }, []);
+
   return { raw };
 }
 
-function useAuditSSE({ path }) {
-  const [audits, setAudits] = useState([]);
-  const clear = useCallback(() => setAudits([]), []);
-  const esRef = useRef(null);
+function useRecentTraffic({ clientKey, limit = 200 }) {
+  const [recentTraffic, setRecentTraffic] = useState([]);
 
   useEffect(() => {
-    if (import.meta.env.DEV && esRef.current) return;
+    let active = true;
 
-    let closed = false;
-    const es = new EventSource(path);
-    esRef.current = es;
-
-    es.onmessage = (e) => {
+    (async () => {
       try {
-        if (closed) return;
-        const ev = JSON.parse(e.data);
-        setAudits((prev) => [ev, ...prev].slice(0, 200));
-      } catch {}
-    };
+        if (!clientKey) {
+          if (active) setRecentTraffic([]);
+          return;
+        }
 
-    es.onerror = () => {};
+        const data = await apiFetch(`traffic/recent?client_key=${encodeURIComponent(clientKey)}&limit=${limit}`);
+        const items = Array.isArray(data?.items) ? data.items : [];
+
+        const normalized = items.map((ev, idx) => {
+          const t = ev.event_ts
+            ? Date.parse(ev.event_ts)
+            : ev.created_at
+              ? Date.parse(ev.created_at)
+              : Date.now();
+
+          return {
+            type: "traffic",
+            id: ev.id ?? `recent-${idx}`,
+            timeMs: Number.isFinite(t) ? t : Date.now(),
+            src: ev.src_ip || "",
+            dst: ev.dst_ip || "",
+            proto: ev.protocol || "",
+            sport: ev.src_port,
+            dport: ev.dst_port,
+            level: ev.level || "Low",
+            flow: ev.direction || "Recent",
+            dns: ev.dns || "",
+            reason: ev.reason || "",
+            detectionType: ev.detection_type || "",
+            src_zone: ev.src_zone,
+            dst_zone: ev.dst_zone,
+            network_scope: ev.network_scope,
+            sensor_id: ev.sensor_id,
+          };
+        });
+
+        if (active) setRecentTraffic(normalized);
+      } catch (error) {
+        console.error("Recent traffic fetch failed:", error);
+        if (active) setRecentTraffic([]);
+      }
+    })();
 
     return () => {
-      closed = true;
-      try {
-        es.close();
-      } catch {}
-      esRef.current = null;
+      active = false;
     };
-  }, [path]);
+  }, [clientKey, limit]);
 
-  return { audits, clear };
+  return { recentTraffic };
+}
+
+function useAlerts() {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl("alerts"), {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Alerts fetch failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      setAlerts(Array.isArray(data) ? data : data?.items ?? []);
+    } catch (error) {
+      console.error("Alerts fetch failed:", error);
+      setAlerts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateStatus = useCallback(async (alertId, status) => {
+    const res = await fetch(apiUrl(`alerts/${alertId}`), {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Alert update failed with status ${res.status}${text ? `: ${text}` : ""}`);
+    }
+
+    const data = await res.json();
+    setAlerts((prev) =>
+      prev.map((a) =>
+        a.id === alertId
+          ? {
+              ...a,
+              status: data.status || status,
+            }
+          : a
+      )
+    );
+    return data;
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { alerts, loading, refresh, updateStatus };
 }
 
 function ccToFlag(cc) {
@@ -248,13 +353,13 @@ function GeoTag({ cc, city, org }) {
 }
 
 export default function Dashboard() {
-  const trafficPath = api("/api/traffic/stream");
-  const auditPath = api("/api/stream/audit");
 
   const { raw: threats } = useThreats();
-  const { audits, clear: clearAudits } = useAuditSSE({ path: auditPath });
+  const { alerts, loading: alertsLoading, refresh: refreshAlerts, updateStatus: updateAlertStatus } = useAlerts();
 
   const clientKey = import.meta.env.VITE_CLIENT_KEY || "";
+
+  const { recentTraffic } = useRecentTraffic({ clientKey, limit: 200})
 
   const [trafficRunning, setTrafficRunning] = useState(() => {
     const v = localStorage.getItem("ic-traffic-running");
@@ -270,13 +375,37 @@ export default function Dashboard() {
   const trafficHook = useTrafficStream({
     maxRows: 2000,
     flushMs: 250,
-    path: trafficPath,
+    path: "traffic/stream",
     enabled: trafficEnabled,
     storageKey: "ic_lastTrafficId",
     clientKey,
   });
 
-  const sseEvents = trafficHook?.rows ?? [];
+  const sseEvents = useMemo(() => {
+    const rows = trafficHook?.rows ?? [];
+    return rows.filter((ev) => {
+      if (!ev) return false;
+      if (ev.status) return false;
+      return !!(
+        ev.id ||
+        ev.eid ||
+        ev.src ||
+        ev.src_ip ||
+        ev.dst ||
+        ev.dst_ip ||
+        ev.proto ||
+        ev.protocol ||
+        ev.sport ||
+        ev.src_port ||
+        ev.dport ||
+        ev.dst_port ||
+        ev.ts ||
+        ev.event_ts ||
+        ev.created_at
+      );
+    });
+  }, [trafficHook?.rows]);
+
   const clearTraffic = trafficHook?.clear ?? (() => {});
   const trafficConnected = Boolean(trafficHook?.connected);
   const trafficLastId = trafficHook?.lastId ?? null;
@@ -292,14 +421,21 @@ export default function Dashboard() {
   useEffect(() => {
     if (!Array.isArray(sseEvents)) return;
     let added = 0;
+
     for (const ev of sseEvents) {
-      const id = ev?.eid || ev?.id || `${ev?.ts ?? ""}-${ev?.src ?? ""}-${ev?.dst ?? ""}-${ev?.sport ?? ""}-${ev?.dport ?? ""}`;
+      const id =
+        ev?.eid ||
+        ev?.id ||
+        `${ev?.ts ?? ""}-${ev?.event_ts ?? ""}-${ev?.created_at ?? ""}-${ev?.src ?? ev?.src_ip ?? ""}-${ev?.dst ?? ev?.dst_ip ?? ""}-${ev?.sport ?? ev?.src_port ?? ""}-${ev?.dport ?? ev?.dst_port ?? ""}`;
+
       if (!id) continue;
+
       if (!trafficSeenRef.current.has(id)) {
         trafficSeenRef.current.add(id);
         added += 1;
       }
     }
+
     if (added) setTotalEvents((n) => n + added);
 
     if (trafficSeenRef.current.size > 100000) {
@@ -315,8 +451,9 @@ export default function Dashboard() {
   const [sinceTs, setSinceTs] = useState(0);
   const [limit, setLimit] = useState(200);
 
-  const [auditLevel, setAuditLevel] = useState("All");
-  const [auditProto, setAuditProto] = useState("All");
+  const [alertStatusFilter, setAlertStatusFilter] = useState("All");
+  const [alertSeverityFilter, setAlertSeverityFilter] = useState("All");
+  const [alertDetectionFilter, setAlertDetectionFilter] = useState("");
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem("ic-filters") || "{}");
@@ -380,9 +517,9 @@ export default function Dashboard() {
     const ipq = ipFilter.trim();
     const lvlq = levelFilter || "All";
 
-    const rowsFromThreats = threats.map((t) => ({
+    const rowsFromThreats = threats.map((t, idx) => ({
       type: "threat",
-      id: t.id,
+      id: t.id ?? `threat-${idx}-${t.ip ?? "no-ip"}-${t.detectedAt ?? "no-time"}`,
       timeMs: new Date(t.detectedAt).getTime(),
       src: t.ip || "",
       dst: t.dst || "",
@@ -395,22 +532,36 @@ export default function Dashboard() {
       src_cc: t.cc,
       src_city: t.city,
       src_asnorg: t.asn,
+      reason: t.reason || "",
+      detectionType: t.detectionType || "",
     }));
 
-    const rowsFromSSE = (Array.isArray(sseEvents) ? sseEvents : []).map((ev) => {
-      const t = ev.event_ts ? Date.parse(ev.event_ts) : ev.created_at ? Date.parse(ev.created_at) : ev.ts ? Math.floor(ev.ts * 1000) : Date.now();
+    const rowsFromSSE = sseEvents.map((ev, idx) => {
+      const t = ev.event_ts
+        ? Date.parse(ev.event_ts)
+        : ev.created_at
+          ? Date.parse(ev.created_at)
+          : ev.ts
+            ? Math.floor(ev.ts * 1000)
+            : Date.now();
+
       return {
         type: "traffic",
-        id: ev.id ?? ev.eid ?? `${ev.ts}-${ev.src}`,
+        id:
+          ev.id ??
+          ev.eid ??
+          `${ev.ts ?? ev.event_ts ?? ev.created_at ?? "no-ts"}-${ev.src ?? ev.src_ip ?? "no-src"}-${ev.dst ?? ev.dst_ip ?? "no-dst"}-${ev.proto ?? ev.protocol ?? "no-proto"}-${ev.sport ?? ev.src_port ?? "no-sport"}-${ev.dport ?? ev.dst_port ?? "no-dport"}-${idx}`,
         timeMs: Number.isFinite(t) ? t : Date.now(),
-        src: ev.src || ev.src_ip,
-        dst: ev.dst || ev.dst_ip,
-        proto: ev.proto || ev.protocol,
+        src: ev.src || ev.src_ip || "",
+        dst: ev.dst || ev.dst_ip || "",
+        proto: ev.proto || ev.protocol || "",
         sport: ev.sport ?? ev.src_port,
         dport: ev.dport ?? ev.dst_port,
         level: ev.level || "Low",
         flow: ev.dir || ev.direction || "Live",
         dns: ev.dns || ev.dns_qname || "",
+        reason: ev.reason || ev.info || "",
+        detectionType: ev.detection_type || "",
         src_cc: ev.src_cc,
         src_city: ev.src_city,
         src_asnorg: ev.src_asnorg,
@@ -420,7 +571,7 @@ export default function Dashboard() {
       };
     });
 
-    let rows = [...rowsFromThreats, ...rowsFromSSE]
+    let rows = [...rowsFromThreats, ...recentTraffic, ...rowsFromSSE]
       .filter((r) => (ipq ? r.src?.includes(ipq) || r.dst?.includes(ipq) : true))
       .filter((r) => (lvlq === "All" ? true : r.level === lvlq))
       .filter((r) => (sinceTs ? r.timeMs >= sinceTs : true))
@@ -428,15 +579,20 @@ export default function Dashboard() {
 
     if (limit && limit > 0) rows = rows.slice(0, limit);
     return rows;
-  }, [threats, sseEvents, ipFilter, levelFilter, sinceTs, limit]);
+  }, [threats, recentTraffic, sseEvents, ipFilter, levelFilter, sinceTs, limit]);
 
-  const filteredAudits = useMemo(() => {
-    return audits.filter((a) => {
-      if (auditLevel !== "All" && (a.level || "Info") !== auditLevel) return false;
-      if (auditProto !== "All" && (a.proto || "System") !== auditProto) return false;
+
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((a) => {
+      if (alertStatusFilter !== "All" && (a.status || "open") !== alertStatusFilter) return false;
+      if (alertSeverityFilter !== "All" && (a.severity || "Low") !== alertSeverityFilter) return false;
+      if (alertDetectionFilter.trim()) {
+        const q = alertDetectionFilter.trim().toLowerCase();
+        if (!String(a.detection_type || "").toLowerCase().includes(q)) return false;
+      }
       return true;
     });
-  }, [audits, auditLevel, auditProto]);
+  }, [alerts, alertStatusFilter, alertSeverityFilter, alertDetectionFilter]);
 
   const downloadCSV = () => {
     const headers = ["time", "type", "src", "dst", "proto", "sport", "dport", "level", "flow", "status"];
@@ -468,6 +624,17 @@ export default function Dashboard() {
     a.click();
     a.remove();
   };
+
+  const handleAlertUpdate = async (alertId, status) => {
+    try {
+      await updateAlertStatus(alertId, status);
+    } catch (error) {
+      console.error("Alert update failed:", error);
+      alert(`Alert update failed: ${error?.message || error}`);
+    }
+  };
+
+  console.log("alerts from api: ", alerts);
 
   return (
     <div className="shell dashboard animate-fade" style={{ maxWidth: 1600 }}>
@@ -599,12 +766,16 @@ export default function Dashboard() {
                   <th className="col-proto">Proto</th>
                   <th className="col-ports">Port</th>
                   <th className="col-level">Severity</th>
+                  <th>Reason</th>
                   <th style={{ textAlign: "right" }}>Analysis</th>
                 </tr>
               </thead>
               <tbody>
-                {combined.map((r) => (
-                  <tr key={`${r.type}-${r.id}`} style={{ cursor: "default" }}>
+                {combined.map((r, idx) => (
+                  <tr
+                    key={`${r.type}-${r.id ?? `${r.timeMs ?? "no-time"}-${r.src ?? "no-src"}-${r.dst ?? "no-dst"}-${r.proto ?? "no-proto"}-${r.sport ?? "no-sport"}-${r.dport ?? "no-dport"}-${idx}`}`}
+                    style={{ cursor: "default" }}
+                  >
                     <td className="mono" style={{ color: "var(--muted)", fontSize: 13 }}>
                       {new Date(r.timeMs).toLocaleTimeString()}
                     </td>
@@ -630,6 +801,9 @@ export default function Dashboard() {
                     <td>
                       <span className={levelBadge(r.level)}>{r.level}</span>
                     </td>
+                    <td style={{ fontSize: 13, color: "var(--muted)", maxWidth: 260 }}>
+                      {r.reason || "—"}
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <button
                         className="btn ghost"
@@ -643,7 +817,7 @@ export default function Dashboard() {
                 ))}
                 {combined.length === 0 && (
                   <tr>
-                    <td colSpan="8" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+                    <td colSpan="9" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
                       No events match your filters.
                     </td>
                   </tr>
@@ -653,104 +827,167 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card" style={{ padding: 0, overflow: "hidden", height: "75vh", display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid var(--border)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "var(--panel-2)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 8, height: 8, background: "var(--brand)", borderRadius: "50%" }} />
-              <h3 style={{ margin: 0, fontSize: 16 }}>System Audit Log</h3>
-            </div>
-            <button className="btn icon-only" onClick={clearAudits} title="Clear audit log" style={{ width: 28, height: 28 }}>
-              <TrashIcon />
-            </button>
+      <div className="card animate-slide animate-delay-1" style={{ padding: 0, overflow: "hidden", marginTop: 20 }}>
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: "var(--panel-2)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 8, height: 8, background: "var(--warn)", borderRadius: "50%" }} />
+            <h3 style={{ margin: 0, fontSize: 16 }}>Alerts</h3>
+            <span className="badge ghost">{alertsLoading ? "Loading…" : `${filteredAlerts.length} visible`}</span>
           </div>
 
-          <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", background: "var(--panel)", display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>SEVERITY:</span>
-              <select
-                className="select"
-                style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 100 }}
-                value={auditLevel}
-                onChange={(e) => setAuditLevel(e.target.value)}
-              >
-                {levels.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>PROTOCOL:</span>
-              <select
-                className="select"
-                style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 100 }}
-                value={auditProto}
-                onChange={(e) => setAuditProto(e.target.value)}
-              >
-                {protocols.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <button className="btn ghost" onClick={refreshAlerts}>
+            <RefreshIcon /> Refresh Alerts
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 16px",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--panel)",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>STATUS:</span>
+            <select
+              className="select"
+              style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
+              value={alertStatusFilter}
+              onChange={(e) => setAlertStatusFilter(e.target.value)}
+            >
+              {alertStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div style={{ overflow: "auto", flex: 1 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Severity</th>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Target</th>
-                  <th>Proto</th>
-                  <th>Time</th>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>SEVERITY:</span>
+            <select
+              className="select"
+              style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
+              value={alertSeverityFilter}
+              onChange={(e) => setAlertSeverityFilter(e.target.value)}
+            >
+              {levels.filter((l) => l !== "Info").map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>TYPE:</span>
+            <input
+              className="input"
+              style={{ height: 28, fontSize: 12, width: 220 }}
+              placeholder="Filter detection type..."
+              value={alertDetectionFilter}
+              onChange={(e) => setAlertDetectionFilter(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div style={{ overflow: "auto", maxHeight: "45vh" }}>
+          <table className="table" style={{ width: "100%" }}>
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Severity</th>
+                <th>Detection</th>
+                <th>Reason</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Proto</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAlerts.map((a, idx) => (
+                <tr key={`${a.id ?? "no-id"}-${idx}`}>
+                  <td className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
+                    {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
+                  </td>
+                  <td>
+                    <span className="chip ghost" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
+                      {a.status || "open"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={levelBadge(a.severity || "Low")}>{a.severity || "Low"}</span>
+                  </td>
+                  <td className="mono" style={{ fontSize: 13 }}>
+                    {a.detection_type || "—"}
+                  </td>
+                  <td style={{ fontSize: 13, color: "var(--muted)", maxWidth: 320 }}>
+                    {a.reason || "—"}
+                  </td>
+                  <td className="mono" style={{ fontSize: 13 }}>
+                    {a.src_ip || "—"}
+                  </td>
+                  <td className="mono" style={{ fontSize: 13 }}>
+                    {a.dst_ip || "—"}
+                    {(a.dst_port ?? a.src_port) != null && (
+                      <div style={{ color: "var(--muted)" }}>
+                        :{a.dst_port ?? a.src_port}
+                      </div>
+                    )}
+                  </td>
+                  <td className="mono" style={{ fontSize: 13 }}>
+                    {a.protocol || "—"}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        className="btn ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        disabled={(a.status || "open") === "acknowledged"}
+                        onClick={() => handleAlertUpdate(a.id, "acknowledged")}
+                      >
+                        Acknowledge
+                      </button>
+                      <button
+                        className="btn ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        disabled={(a.status || "open") === "closed"}
+                        onClick={() => handleAlertUpdate(a.id, "closed")}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredAudits.map((a, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span className={levelBadge(a.level || "Info")}>{a.level || "Info"}</span>
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{a.actor}</td>
-                    <td>
-                      <span style={{ color: "var(--brand)", fontWeight: 600 }}>{a.action}</span>
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {a.target}
-                    </td>
-                    <td className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
-                      {a.proto || "System"}
-                    </td>
-                    <td className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
-                      {new Date((a.at || 0) * 1000).toLocaleTimeString()}
-                    </td>
-                  </tr>
-                ))}
-                {filteredAudits.length === 0 && (
-                  <tr>
-                    <td colSpan="6" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-                      No audit activity recorded.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+
+              {filteredAlerts.length === 0 && (
+                <tr>
+                  <td colSpan="9" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+                    No alerts match your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  );
+  </div>
+  )
 }
