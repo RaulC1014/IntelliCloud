@@ -13,6 +13,8 @@ import Decipher from "./pages/Decipher.jsx";
 import Devices from "./pages/Devices.jsx";
 import LogAnalyzer from "./pages/LogAnalyzer.jsx";
 import PcapParser from "./pages/PcapParser.jsx";
+import Cases from "./pages/Cases.jsx";
+import Tools from "./pages/Tools.jsx";
 
 import logoImg from "./assets/IntellicloudLogoTransparent.png";
 
@@ -51,6 +53,18 @@ const LogAnalyzerIcon = () => (
 const PcapParserIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M4 5h16a2 2 0 0 1 2 2v4h-2V7H4v10h7v2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm12 7 6 3.5-6 3.5V16h-5v-1h5v-3z" />
+  </svg>
+);
+
+const CasesIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zm-9 8H7v-2h4v2zm6-4H7v-2h10v2z"/>
+  </svg>
+);
+
+const ToolsIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
   </svg>
 );
 
@@ -538,10 +552,12 @@ function AppShell({ user, onSignOut }) {
     () => [
       { id: "home", label: "Home", Icon: HomeIcon },
       { id: "dashboard", label: "Dashboard", Icon: DashboardIcon },
+      { id: "cases",        label: "Cases",         Icon: CasesIcon },
       { id: "decipher", label: "Decipher", Icon: DecipherIcon },
       { id: "devices", label: "Devices", Icon: DevicesIcon },
       { id: "log-analyzer", label: "Log Analyzer", Icon: LogAnalyzerIcon },
       { id: "pcapparser", label: "PCAP Parser", Icon: PcapParserIcon },
+      { id: "tools",        label: "Tools",         Icon: ToolsIcon },
     ],
     []
   );
@@ -560,6 +576,10 @@ function AppShell({ user, onSignOut }) {
         return <LogAnalyzer />;
       case "pcapparser":
         return <PcapParser/>
+      case "cases":
+        return <Cases />;
+      case "tools":
+        return <Tools />;
       default:
         return <Home user={user} />;
     }

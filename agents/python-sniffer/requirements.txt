@@ -1,3 +1,0 @@
-pcapy-ng
-dpkt
-requests

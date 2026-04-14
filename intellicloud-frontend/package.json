@@ -6,8 +6,7 @@
     "start": "vite",
     "build": "vite build",
     "electron:dev": "cross-env NODE_ENV=development electron .",
-    "dev": "concurrently -k \"npm run start\" \"wait-on tcp:5173 && npm run electron:dev\""
-  },
+    "dev": "vite --host 0.0.0.0 --port 5173"  },
   "build": {
     "appId": "com.intellicloud.app",
     "productName": "IntelliCloud",

@@ -5,7 +5,7 @@
 
     WORKDIR /app
     COPY package*.json ./
-    RUN npm ci
+    RUN npm ci --ignore-scripts --omit-optional
     COPY . .
     
     # Vite dev server

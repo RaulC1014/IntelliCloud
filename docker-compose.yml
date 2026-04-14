@@ -1,4 +1,16 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: intellicloud
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   backend:
     build:
       context: ./intellicloud-backend
@@ -26,6 +38,7 @@ services:
       GEOIP_ASN_DB: /data/GeoLite2-ASN.mmdb
     depends_on:
       - redis
+      - db
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health', timeout=2).read(); print('ok')"]
       interval: 10s
@@ -50,7 +63,7 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:5000
     ports:
-      - "5173:5173"
+      - "5174:5173"
     volumes:
       - ./intellicloud-frontend:/app
       - /app/node_modules
@@ -69,16 +82,16 @@ services:
       backend:
         condition: service_healthy
     environment:
-      # agent reads IC_API / IC_CLIENT_KEY / IC_BPF / IC_EMIT_MODE / IC_IFACE
       IC_API: http://backend:5000
       IC_CLIENT_KEY: ${IC_CLIENT_KEY}
       IC_IFACE: ${IC_IFACE:-eth0}
       IC_EMIT_MODE: important
       IC_VERIFY_TLS: "false"
-    # Needed on Linux for packet capture
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    # If capture fails, uncomment (Linux only; macOS usually won't help)
-    # privileged: true
     restart: unless-stopped
+
+# Named volumes — declared at root level, separate from service bind mounts
+volumes:
+  postgres_data:

@@ -1,9 +1,13 @@
 # Python virtual environment
 venv/
+.venv/
 
 # Bytecode and cache files
 __pycache__/
 *.pyc
+build/
+dist/
+*.spec
 
 # Environment variable files
 .env
@@ -31,3 +35,5 @@ out/
 
 # Others
 intellicloud-backend/data/*.mmdb
+secrets/
+*.key
