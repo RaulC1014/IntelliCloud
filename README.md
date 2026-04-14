@@ -2,7 +2,7 @@
 
 **A lightweight Security Operations Platform for real-time threat monitoring, analysis, and investigation.**
 
-Built as a Senior Capstone Project by Raul Cortinas.
+Built as a Senior Capstone Project by Raul Cortinas and Bryan Kahl.
 
 ---
 
