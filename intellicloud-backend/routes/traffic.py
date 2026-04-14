@@ -8,6 +8,8 @@ from services.traffic_detect import score_event
 from extensions import limiter
 from services.geo import enrich_pair
 from models.db import get_db_connection, put_db_connection
+from auth import require_auth, verify_api
+from services.rules_engine import evaluate_rules
 
 bp = Blueprint("traffic", __name__)
 
@@ -33,6 +35,7 @@ def _agent_cmd():
     return [sys.executable, agent_path]
 
 @bp.route("/agent/status", methods=["GET"])
+@require_auth
 def agent_status():
     global AGENT_PROC
     with AGENT_LOCK:
@@ -41,6 +44,7 @@ def agent_status():
     return {"ok": True, "running": running, "pid": pid}, 200
 
 @bp.route("/agent/start", methods=["POST"])
+@require_auth
 def agent_start():
     global AGENT_PROC
     with AGENT_LOCK:
@@ -61,6 +65,7 @@ def agent_start():
         return {"ok": True, "running": True, "pid": AGENT_PROC.pid}, 200
 
 @bp.route("/agent/stop", methods=["POST"])
+@require_auth
 def agent_stop():
     global AGENT_PROC
     with AGENT_LOCK:
@@ -274,7 +279,9 @@ def _insert_traffic_event(packet: dict) -> None:
         put_db_connection(conn)
 
 
+#@require_auth
 @bp.route("/traffic/stream", methods=["GET"])
+@require_auth
 def traffic_stream_db():
     client_key = request.args.get("client_key")
     if not client_key:
@@ -411,6 +418,7 @@ def traffic_recent():
 # Note: Your collector.py uses /api/collect/ip, but this handles batch ingest
 @bp.route("/traffic/ingest", methods=["POST"])
 @limiter.limit("6000 per minute", key_func=_client_key_for_limiter)
+@require_auth
 def ingest():
     try:
         data = request.get_json(force=True, silent=True)
@@ -491,6 +499,12 @@ def ingest():
             }
 
             _insert_traffic_event(packet)
+
+            triggered_rules = evaluate_rules(packet, client_id=client_id)
+            for rule in triggered_rules:
+                current_app.logger.info(
+                    "Rule triggered: %s severity=%s", rule["rule_id"], rule["rule_severity"]
+                )
             global_queue.put(packet)
             count += 1
 

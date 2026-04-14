@@ -1,18 +1,43 @@
-- id: brute_force_login
+- id: inbound_admin_port
   when:
-    threat_level_gte: 3
-    ip_in_blocklist: false
+    detection_type: inbound_admin_port
   severity: high
-  title: "High threat event"
+  title: "Inbound admin port access attempt"
   actions:
     - type: log
-    - type: notify   # stub webhook/email
-    - type: block_ip # add to ip_blocklist
+    - type: alert
 
-- id: suspicious_crawler
+- id: port_scan
   when:
-    ua_regex: "(curl|wget|python-requests)"
+    detection_type: port_scan
+  severity: high
+  title: "Port scan detected"
+  actions:
+    - type: log
+    - type: alert
+
+- id: c2_indicator
+  when:
+    detection_type: c2_indicator
+  severity: critical
+  title: "Known C2 port traffic detected"
+  actions:
+    - type: log
+    - type: alert
+
+- id: beaconing
+  when:
+    detection_type: beaconing
   severity: medium
-  title: "Suspicious crawler detected"
+  title: "Possible C2 beaconing pattern"
+  actions:
+    - type: log
+    - type: alert
+
+- id: dns_anomaly
+  when:
+    detection_type: dns_length_anomaly
+  severity: medium
+  title: "DNS tunneling or DGA indicator"
   actions:
     - type: log

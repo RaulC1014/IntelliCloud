@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { USE_MOCK, } from "../config";
-import { agentStart, agentStop } from "../api/agent";
+import { agentStart, agentStop, agentStatus } from "../api/agent";
 import { apiFetch, apiUrl } from "../api/http";
 import { mapThreat } from "../adapters";
 import useTrafficStream from "../hooks/useTrafficStream";
@@ -361,16 +361,36 @@ export default function Dashboard() {
 
   const { recentTraffic } = useRecentTraffic({ clientKey, limit: 200})
 
-  const [trafficRunning, setTrafficRunning] = useState(() => {
-    const v = localStorage.getItem("ic-traffic-running");
-    return v !== "false";
-  });
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentChecked, setAgentChecked] = useState(false);
+
+  const [streamPaused, setStreamPaused] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("ic-traffic-running", String(trafficRunning));
-  }, [trafficRunning]);
+    let cancelled = false;
+  
+    const checkStatus = async () => {
+      try {
+        const data = await agentStatus();
+        if (!cancelled) {
+          setAgentRunning(data?.running === true);
+          setAgentChecked(true);
+        }
+      } catch {
+        if (!cancelled) setAgentChecked(true);
+      }
+    };
+  
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
-  const trafficEnabled = trafficRunning && !!clientKey;
+  const trafficEnabled = agentRunning && !streamPaused && !clientKey
 
   const trafficHook = useTrafficStream({
     maxRows: 2000,
@@ -493,25 +513,27 @@ export default function Dashboard() {
     clearTraffic();
   };
 
-  const startCapture = async () => {
+  const toggleAgent = async () => {
+    setAgentLoading(true);
     try {
-      await agentStart();
-      setTrafficRunning(true);
+      if (agentRunning) {
+        await agentStop();
+        setAgentRunning(false);
+        setStreamPaused(false);
+      } else {
+        await agentStart()
+        setAgentRunning(true);
+        setStreamPaused(false);
+      }
     } catch (e) {
-      console.error("Start capture failed:", e);
-      alert(`Start capture failed: ${e?.message || e}`);
+      console.error("Agent toggle failed:", e);
+      alert(`Agent control failed: ${e?.message || e}`);
+    } finally {
+      setAgentLoading(false);
     }
-  };
+  }
 
-  const stopCapture = async () => {
-    try {
-      await agentStop();
-      setTrafficRunning(false);
-    } catch (e) {
-      console.error("Stop capture failed:", e);
-      alert(`Stop capture failed: ${e?.message || e}`);
-    }
-  };
+  const toggleStreamPause = () => setStreamPaused(p => !p);
 
   const combined = useMemo(() => {
     const ipq = ipFilter.trim();
@@ -634,12 +656,13 @@ export default function Dashboard() {
     }
   };
 
-  console.log("alerts from api: ", alerts);
-
   return (
     <div className="shell dashboard animate-fade" style={{ maxWidth: 1600 }}>
+  
+      {/* AI analysis side panel — slides in when a row is clicked */}
       <AIAgentPanel selectedData={selectedForAI} onClose={() => setSelectedForAI(null)} />
-
+  
+      {/* ── Top toolbar — filters and action buttons ── */}
       <div
         className="card animate-slide"
         style={{
@@ -652,6 +675,7 @@ export default function Dashboard() {
           justifyContent: "space-between",
         }}
       >
+        {/* Left side — IP filter, severity filter, row count */}
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ position: "relative" }}>
             <div style={{ position: "absolute", left: 10, top: 10, color: "var(--muted)" }}>
@@ -665,18 +689,16 @@ export default function Dashboard() {
               onChange={(e) => setIpFilter(e.target.value)}
             />
           </div>
-
+  
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: 0.5 }}>SEVERITY:</span>
             <select className="select" style={{ width: 140 }} value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
               {levels.filter((l) => l !== "Info").map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
+                <option key={l} value={l}>{l}</option>
               ))}
             </select>
           </div>
-
+  
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: 0.5 }}>ROWS:</span>
             <select className="select" style={{ width: 140 }} value={String(limit)} onChange={(e) => setLimit(Number(e.target.value))}>
@@ -686,29 +708,45 @@ export default function Dashboard() {
               <option value="0">All Rows</option>
             </select>
           </div>
-
+  
+          {/* Only shows when a filter is active */}
           {(ipFilter || levelFilter !== "All") && (
             <button className="btn ghost" onClick={() => { setIpFilter(""); setLevelFilter("All"); }} style={{ fontSize: 13 }}>
               Reset Filters
             </button>
           )}
         </div>
-
+  
+        {/* Right side — view management buttons */}
         <div style={{ display: "flex", gap: 8 }}>
+          {/* Soft clear — filters out events older than now using sinceTs */}
           <button className="btn" onClick={handleClearTraffic} title="Clear current view">
             <TrashIcon /> Clear
           </button>
+  
+          {/* Reloads all stored history from the database */}
           <button className="btn" onClick={handleReloadTraffic} title="Show all history">
             <RefreshIcon /> Reload
           </button>
+  
+          {/* Hard reset — wipes display, resets event counter and SSE cursor */}
+          <button className="btn" onClick={handleResetCursor} title="Hard reset — clears display, resets event counter and stream cursor">
+            ↺ Reset
+          </button>
+  
+          {/* Downloads the current filtered table as a CSV file */}
           <button className="btn primary" onClick={downloadCSV}>
             <DownloadIcon /> Export CSV
           </button>
         </div>
       </div>
-
+  
       <div className="grid-halves animate-slide animate-delay-1" style={{ alignItems: "start" }}>
+  
+        {/* ── Live Traffic Feed card ── */}
         <div className="card" style={{ padding: 0, overflow: "hidden", height: "75vh", display: "flex", flexDirection: "column" }}>
+  
+          {/* Card header — SSE status on left, agent controls on right */}
           <div
             style={{
               padding: "16px 20px",
@@ -719,7 +757,10 @@ export default function Dashboard() {
               background: "var(--panel-2)",
             }}
           >
+            {/* Left — connection dot, title, live/paused badge, running event count */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+  
+              {/* Green when SSE stream is connected, grey when paused or disconnected */}
               <div
                 style={{
                   width: 8,
@@ -730,31 +771,82 @@ export default function Dashboard() {
                 }}
               />
               <h3 style={{ margin: 0, fontSize: 16 }}>Live Traffic Feed</h3>
-
+  
+              {/* Reflects SSE connection state — Live, Reconnecting, or Paused */}
               <span className="badge ghost" style={{ marginLeft: 10 }}>
                 {trafficEnabled ? (trafficConnected ? "Live" : "Reconnecting…") : "Paused"}
                 {trafficLastId != null ? ` · lastId=${trafficLastId}` : ""}
               </span>
+  
+              {/* Running total of unique events seen this session */}
+              {agentRunning && totalEvents > 0 && (
+                <span style={{
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  fontFamily: "monospace",
+                  fontWeight: 600,
+                  marginLeft: 6,
+                }}>
+                  {totalEvents.toLocaleString()} events
+                </span>
+              )}
             </div>
-
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {trafficRunning ? (
-                <button className="btn" onClick={stopCapture}>
-                  ⏸ Pause
-                </button>
-              ) : (
-                <button className="btn primary" onClick={startCapture}>
-                  ▶ Start / Resume
+  
+            {/* Right — start/stop the capture agent, pause/resume the display */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+  
+              {/* Controls the actual ic_agent.py process running on the backend.
+                  Shows Checking on load, then Start Agent / Stop Agent */}
+              <button
+                className={`btn ${agentRunning ? "" : "primary"}`}
+                onClick={toggleAgent}
+                disabled={agentLoading || !agentChecked}
+                style={{
+                  background: agentRunning ? "rgba(239,68,68,0.15)" : undefined,
+                  borderColor: agentRunning ? "rgba(239,68,68,0.4)" : undefined,
+                  color: agentRunning ? "#f87171" : undefined,
+                  minWidth: 120,
+                }}
+              >
+                {!agentChecked
+                  ? "Checking..."
+                  : agentLoading
+                  ? "..."
+                  : agentRunning
+                  ? "⏹ Stop Agent"
+                  : "▶ Start Agent"}
+              </button>
+  
+              {/* Only visible while agent is running.
+                  Pauses the frontend display — agent keeps capturing in the background */}
+              {agentRunning && (
+                <button
+                  className="btn"
+                  onClick={toggleStreamPause}
+                  title={streamPaused ? "Resume live display" : "Pause live display (agent keeps capturing)"}
+                >
+                  {streamPaused ? "▶ Resume Display" : "⏸ Pause Display"}
                 </button>
               )}
-              <button className="btn ghost" onClick={handleResetCursor} title="Reset resume cursor and clear view">
-                ⟲ Reset Cursor
-              </button>
-
-              <span className="badge med">{totalEvents} Events</span>
+  
             </div>
           </div>
-
+  
+          {/* Pause banner — sits between header and table when display is paused */}
+          {streamPaused && agentRunning && (
+            <div style={{
+              padding: "6px 20px",
+              background: "rgba(234,179,8,0.15)",
+              borderBottom: "1px solid rgba(234,179,8,0.3)",
+              color: "#fbbf24",
+              fontSize: 12,
+              fontWeight: 600,
+            }}>
+              ⏸ Display paused — agent is still capturing in the background
+            </div>
+          )}
+  
+          {/* Scrollable packet table */}
           <div style={{ overflow: "auto", flex: 1 }}>
             <table className="table" style={{ width: "100%" }}>
               <thead>
@@ -792,12 +884,8 @@ export default function Dashboard() {
                       <div style={{ fontWeight: 600 }}>{r.dst}</div>
                       <GeoTag cc={r.dst_cc} city={r.dst_city} org={r.dst_asnorg} />
                     </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {r.proto}
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {r.dport}
-                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>{r.proto}</td>
+                    <td className="mono" style={{ fontSize: 13 }}>{r.dport}</td>
                     <td>
                       <span className={levelBadge(r.level)}>{r.level}</span>
                     </td>
@@ -805,6 +893,7 @@ export default function Dashboard() {
                       {r.reason || "—"}
                     </td>
                     <td style={{ textAlign: "right" }}>
+                      {/* Opens the AI analysis side panel for this specific event */}
                       <button
                         className="btn ghost"
                         style={{ padding: "6px 12px", fontSize: 12, color: "var(--brand)", borderColor: "var(--border)" }}
@@ -826,168 +915,160 @@ export default function Dashboard() {
             </table>
           </div>
         </div>
-
-      <div className="card animate-slide animate-delay-1" style={{ padding: 0, overflow: "hidden", marginTop: 20 }}>
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "var(--panel-2)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, background: "var(--warn)", borderRadius: "50%" }} />
-            <h3 style={{ margin: 0, fontSize: 16 }}>Alerts</h3>
-            <span className="badge ghost">{alertsLoading ? "Loading…" : `${filteredAlerts.length} visible`}</span>
+  
+        {/* ── Alerts card ── */}
+        <div className="card animate-slide animate-delay-1" style={{ padding: 0, overflow: "hidden", marginTop: 20 }}>
+          <div
+            style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "var(--panel-2)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 8, height: 8, background: "var(--warn)", borderRadius: "50%" }} />
+              <h3 style={{ margin: 0, fontSize: 16 }}>Alerts</h3>
+              <span className="badge ghost">{alertsLoading ? "Loading…" : `${filteredAlerts.length} visible`}</span>
+            </div>
+  
+            {/* Manually re-fetches alerts from the backend */}
+            <button className="btn ghost" onClick={refreshAlerts}>
+              <RefreshIcon /> Refresh Alerts
+            </button>
           </div>
-
-          <button className="btn ghost" onClick={refreshAlerts}>
-            <RefreshIcon /> Refresh Alerts
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: "8px 16px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--panel)",
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>STATUS:</span>
-            <select
-              className="select"
-              style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
-              value={alertStatusFilter}
-              onChange={(e) => setAlertStatusFilter(e.target.value)}
-            >
-              {alertStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+  
+          {/* Alert filter bar — status, severity, and detection type */}
+          <div
+            style={{
+              padding: "8px 16px",
+              borderBottom: "1px solid var(--border)",
+              background: "var(--panel)",
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>STATUS:</span>
+              <select
+                className="select"
+                style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
+                value={alertStatusFilter}
+                onChange={(e) => setAlertStatusFilter(e.target.value)}
+              >
+                {alertStatuses.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+  
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>SEVERITY:</span>
+              <select
+                className="select"
+                style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
+                value={alertSeverityFilter}
+                onChange={(e) => setAlertSeverityFilter(e.target.value)}
+              >
+                {levels.filter((l) => l !== "Info").map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </div>
+  
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>TYPE:</span>
+              <input
+                className="input"
+                style={{ height: 28, fontSize: 12, width: 220 }}
+                placeholder="Filter detection type..."
+                value={alertDetectionFilter}
+                onChange={(e) => setAlertDetectionFilter(e.target.value)}
+              />
+            </div>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>SEVERITY:</span>
-            <select
-              className="select"
-              style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
-              value={alertSeverityFilter}
-              onChange={(e) => setAlertSeverityFilter(e.target.value)}
-            >
-              {levels.filter((l) => l !== "Info").map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>TYPE:</span>
-            <input
-              className="input"
-              style={{ height: 28, fontSize: 12, width: 220 }}
-              placeholder="Filter detection type..."
-              value={alertDetectionFilter}
-              onChange={(e) => setAlertDetectionFilter(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div style={{ overflow: "auto", maxHeight: "45vh" }}>
-          <table className="table" style={{ width: "100%" }}>
-            <thead>
-              <tr>
-                <th>Created</th>
-                <th>Status</th>
-                <th>Severity</th>
-                <th>Detection</th>
-                <th>Reason</th>
-                <th>Source</th>
-                <th>Destination</th>
-                <th>Proto</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAlerts.map((a, idx) => (
-                <tr key={`${a.id ?? "no-id"}-${idx}`}>
-                  <td className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
-                    {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
-                  </td>
-                  <td>
-                    <span className="chip ghost" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
-                      {a.status || "open"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={levelBadge(a.severity || "Low")}>{a.severity || "Low"}</span>
-                  </td>
-                  <td className="mono" style={{ fontSize: 13 }}>
-                    {a.detection_type || "—"}
-                  </td>
-                  <td style={{ fontSize: 13, color: "var(--muted)", maxWidth: 320 }}>
-                    {a.reason || "—"}
-                  </td>
-                  <td className="mono" style={{ fontSize: 13 }}>
-                    {a.src_ip || "—"}
-                  </td>
-                  <td className="mono" style={{ fontSize: 13 }}>
-                    {a.dst_ip || "—"}
-                    {(a.dst_port ?? a.src_port) != null && (
-                      <div style={{ color: "var(--muted)" }}>
-                        :{a.dst_port ?? a.src_port}
-                      </div>
-                    )}
-                  </td>
-                  <td className="mono" style={{ fontSize: 13 }}>
-                    {a.protocol || "—"}
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        className="btn ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        disabled={(a.status || "open") === "acknowledged"}
-                        onClick={() => handleAlertUpdate(a.id, "acknowledged")}
-                      >
-                        Acknowledge
-                      </button>
-                      <button
-                        className="btn ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        disabled={(a.status || "open") === "closed"}
-                        onClick={() => handleAlertUpdate(a.id, "closed")}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredAlerts.length === 0 && (
+  
+          {/* Scrollable alerts table */}
+          <div style={{ overflow: "auto", maxHeight: "45vh" }}>
+            <table className="table" style={{ width: "100%" }}>
+              <thead>
                 <tr>
-                  <td colSpan="9" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-                    No alerts match your filters.
-                  </td>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th>Severity</th>
+                  <th>Detection</th>
+                  <th>Reason</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Proto</th>
+                  <th>Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredAlerts.map((a, idx) => (
+                  <tr key={`${a.id ?? "no-id"}-${idx}`}>
+                    <td className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
+                      {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
+                    </td>
+                    <td>
+                      <span className="chip ghost" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
+                        {a.status || "open"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={levelBadge(a.severity || "Low")}>{a.severity || "Low"}</span>
+                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>{a.detection_type || "—"}</td>
+                    <td style={{ fontSize: 13, color: "var(--muted)", maxWidth: 320 }}>{a.reason || "—"}</td>
+                    <td className="mono" style={{ fontSize: 13 }}>{a.src_ip || "—"}</td>
+                    <td className="mono" style={{ fontSize: 13 }}>
+                      {a.dst_ip || "—"}
+                      {(a.dst_port ?? a.src_port) != null && (
+                        <div style={{ color: "var(--muted)" }}>:{a.dst_port ?? a.src_port}</div>
+                      )}
+                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>{a.protocol || "—"}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {/* Marks alert as acknowledged — disables once already acknowledged */}
+                        <button
+                          className="btn ghost"
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          disabled={(a.status || "open") === "acknowledged"}
+                          onClick={() => handleAlertUpdate(a.id, "acknowledged")}
+                        >
+                          Acknowledge
+                        </button>
+                        {/* Closes the alert — disables once already closed */}
+                        <button
+                          className="btn ghost"
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          disabled={(a.status || "open") === "closed"}
+                          onClick={() => handleAlertUpdate(a.id, "closed")}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredAlerts.length === 0 && (
+                  <tr>
+                    <td colSpan="9" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+                      No alerts match your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+  
       </div>
     </div>
-  </div>
-  )
+  );
 }

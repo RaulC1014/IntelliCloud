@@ -61,7 +61,6 @@ def require_auth(f):
 
 def require_role(required: str):
     """Require a specific role claim (defaulting to 'user' if absent)."""
-    @wraps(required)
     def deco(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):

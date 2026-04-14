@@ -5,7 +5,7 @@ from werkzeug.exceptions import BadRequest
 from ipaddress import ip_address
 from models.db import get_db_connection, put_db_connection
 from models.tracker import log_visitor_ip           # raw IP visit log
-from services.rules_engine import eval_event 
+from services.rules_engine import evaluate_rules
 # === [FIX 1] Import the live stream queue ===
 from routes.traffic import global_queue  
 
@@ -94,7 +94,6 @@ def collect_ip():
         print(f"[DEBUG] Pushed to queue: {ip}") # Print so you can see it working
     except Exception as e:
         print(f"[ERROR] Queue push failed: {e}")
- 
 
     # 2) Evaluate Threats
     try:
@@ -104,7 +103,7 @@ def collect_ip():
             "description": f"page={page}" if page else "",
             "threat_level": 0,
         }
-        eval_event(event, client["client_id"])
+        evaluate_rules(event, client["client_id"])
     except Exception as e:
         return jsonify({"ok": True, "log": raw_log_row, "warn": f"detections_failed: {e}"}), 202
 

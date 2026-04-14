@@ -1,57 +1,58 @@
-import re, yaml
-from models.alerts import create_alert, block_ip, is_ip_blocked
+import yaml
+import re
+import os
+from pathlib import Path
 
-_rules_cache = None
+_RULES_PATH = Path(__file__).parent.parent / "rules" / "rules.yaml"
 
-def load_rules(path: str = "rules/rules.yaml"):
-    global _rules_cache
-    if _rules_cache is None:
-        with open(path, "r", encoding="utf-8") as f:
-            _rules_cache = yaml.safe_load(f) or []
-    return _rules_cache
+def _load_rules() -> list[dict]:
+    try:
+        with open(_RULES_PATH) as f:
+            return yaml.safe_load(f) or []
+    except Exception as e:
+        print(f"[rules] Failed to load rules: {e}")
+        return []
 
-def eval_event(event: dict, client_id: int | None) -> list[int]:
+def evaluate_rules(packet: dict, client_id=None) -> list[dict]:
     """
-    TO BE EXPECTED: ip_address, threat_level, user_agent, description, etc.
-    Returns list of alert IDs created.
+    Evaluate a scored packet against the rules file.
+    Returns a list of triggered rule dicts (may be empty).
     """
-    rules = load_rules()
-    created = []
+    rules = _load_rules()
+    triggered = []
+
+    severity_rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+    pkt_level = severity_rank.get((packet.get("level") or "low").lower(), 1)
 
     for rule in rules:
-        cond = rule.get("when", {})
-        ok = True
+        rule_id = rule.get("id", "unknown")
+        when = rule.get("when", {})
 
-        if "threat_level_gte" in cond:
-            ok &= int(event.get("threat_level", 0)) >= int(cond["threat_level_gte"])
-        if "ua_regex" in cond:
-            ua = event.get("user_agent", "") or ""
-            ok &= bool(re.search(cond["ua_regex"], ua, re.I))
-        if cond.get("ip_in_blocklist") is False:
-            ok &= not is_ip_blocked(event.get("ip_address", ""))
-        
-        if not ok:
+        # Check threat_level_gte
+        min_rank = severity_rank.get(
+            str(when.get("threat_level_gte", "")).lower().replace("3", "high").replace("2", "medium"), 0
+        )
+        if when.get("threat_level_gte") and pkt_level < min_rank:
             continue
 
-        alert_id = create_alert(
-            client_id=client_id,
-            rule_id=rule["id"],
-            severity=rule["severity"],
-            title=rule["title"],
-            details=event
-        )
-        if alert_id:
-            created.append(alert_id)
+        # Check ua_regex against dns or reason fields
+        ua_regex = when.get("ua_regex")
+        if ua_regex:
+            haystack = f"{packet.get('dns','')} {packet.get('reason','')}"
+            if not re.search(ua_regex, haystack, re.IGNORECASE):
+                continue
 
-        for action in rule.get("actions", []):
-            t = action.get("type")
-            if t == "log":
-                pass
-            elif t == "block_ip":
-                ip = event.get("ip_address")
-                if ip:
-                    block_ip(client_id, ip, f"rule{rule['id']}")
-            elif t == "notify":
-                print(f"[notify] {rule['id']} -> alert {alert_id}")
-                
-    return created
+        # Check detection_type match
+        detection_type = when.get("detection_type")
+        if detection_type and packet.get("detection_type") != detection_type:
+            continue
+
+        # Rule matched
+        triggered.append({
+            "rule_id": rule_id,
+            "severity": rule.get("severity", "medium"),
+            "title": rule.get("title", rule_id),
+            "actions": rule.get("actions", []),
+        })
+
+    return triggered

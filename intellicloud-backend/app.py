@@ -33,7 +33,11 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
 
-    
+    @app.route("/api/health")
+    def health():
+        return jsonify({"status": "ok"}), 200
+
+    # --- Geo readers ---
     readers = load_readers()
     app.config["GEO_READERS"] = readers
     app.extensions["geo"] = readers
@@ -48,14 +52,14 @@ def create_app():
             except Exception:
                 pass
 
-    
+    # --- Secret key ---
     secret = _load_secret_key()
     if secret:
         app.config["SECRET_KEY"] = secret
     else:
         logger.warning("SECRET_KEY is not set. Provide FLASK_SECRET_KEY or FLASK_SECRET_KEY_FILE.")
 
-    
+    # --- Allowed origins — must be defined BEFORE CORS() and any @after_request that uses it ---
     allowed = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
     if not allowed:
         allowed = [
@@ -69,11 +73,24 @@ def create_app():
             "http://127.0.0.1:5175",
         ]
 
+    # --- CORS --- 
     CORS(
         app,
         resources={r"/api/*": {"origins": allowed, "supports_credentials": True}},
     )
 
+    # --- Security headers added to every response ---
+    @app.after_request
+    def add_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        if not app.debug:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+    # --- Dev CORS headers (handles localhost origins explicitly) ---
     @app.after_request
     def add_dev_cors_headers(response):
         origin = request.headers.get("Origin")
@@ -87,17 +104,15 @@ def create_app():
             "http://localhost:8080",
             "http://127.0.0.1:8080",
         }
-
         if origin and (origin in allowed or origin in localhost_origins):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
             response.headers["Vary"] = "Origin"
-
         return response
 
-    # --- Firebase + Limiter (safe init) ---
+    # --- Firebase + Limiter ---
     try:
         init_firebase_app(app)
     except Exception as exc:
@@ -117,24 +132,26 @@ def create_app():
     from routes.ops import bp as ops_bp
     from routes.aliases import bp as aliases_bp
     from routes.assets import bp as assets_bp
+    from routes.tools import tools_bp
 
-    # Keep everything consistent under /api
-    app.register_blueprint(assets_bp, url_prefix="/api")
-    app.register_blueprint(ai_bp, url_prefix="/api")
+    app.register_blueprint(assets_bp,  url_prefix="/api")
+    app.register_blueprint(ai_bp,      url_prefix="/api")
     app.register_blueprint(threats_bp, url_prefix="/api")
-    app.register_blueprint(track_bp, url_prefix="/api")
+    app.register_blueprint(track_bp,   url_prefix="/api")
     app.register_blueprint(collector_bp, url_prefix="/api")
-    app.register_blueprint(clients_bp, url_prefix="/api")   
+    app.register_blueprint(clients_bp, url_prefix="/api")
     app.register_blueprint(traffic_bp, url_prefix="/api")
-    app.register_blueprint(ops_bp, url_prefix="/api")
+    app.register_blueprint(ops_bp,     url_prefix="/api")
     app.register_blueprint(aliases_bp, url_prefix="/api")
-    app.register_blueprint(alerts_bp, url_prefix="/api")
+    app.register_blueprint(alerts_bp,  url_prefix="/api")
+    app.register_blueprint(tools_bp,   url_prefix="/api")
 
     # --- Root route ---
     @app.route("/")
     def home():
         return {"message": "Backend is running!"}
-    
+
+    # --- Graceful agent shutdown on exit ---
     def _stop_agent_if_running():
         try:
             from routes import traffic as traffic_routes
@@ -158,7 +175,7 @@ def create_app():
 
     atexit.register(_stop_agent_if_running)
 
-    # --- Error handlers (JSON) ---
+    # --- JSON error handlers ---
     @app.errorhandler(400)
     def bad_request(e):
         return jsonify({"error": "bad_request", "detail": str(e)}), 400
