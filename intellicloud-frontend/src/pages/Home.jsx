@@ -1,10 +1,102 @@
-// src/pages/Home.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 
-// --- Soft, Minimal Icons ---
-const EyeIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>;
-const TranslateIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 19V5a2 2 0 0 1 2-2h13.4a2 2 0 0 1 2 2v13.8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M9 9h6"></path><path d="M9 13h6"></path><path d="M9 17h3"></path></svg>;
-const ActivityIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
+// --- The 7 Core Features of IntelliCloud ---
+const FEATURES = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    tagline: "Your Real-Time Command Center",
+    desc: "Get a high-level, instantaneous overview of network health, active alerts, and recent ingest metrics. Instantly visualize your threat landscape at a single glance."
+  },
+  {
+    id: "cases",
+    label: "Cases",
+    tagline: "Streamlined Incident Response",
+    desc: "Manage and track active security incidents. Group related alerts together, assign investigations, store critical evidence, and maintain a chronological timeline of mitigation."
+  },
+  {
+    id: "decipher",
+    label: "Decipher",
+    tagline: "AI-Powered Payload Analysis",
+    desc: "Unmask the unknown. Feed obfuscated scripts, suspicious code, or complex payloads to our AI engine for instant deobfuscation, translation, and threat assessment."
+  },
+  {
+    id: "devices",
+    label: "Devices",
+    tagline: "Complete Asset Visibility",
+    desc: "Maintain a comprehensive inventory of your network. Monitor connected nodes, identify vulnerable endpoints, and track rogue devices attempting to breach your perimeter."
+  },
+  {
+    id: "log-analyzer",
+    label: "Log Analyzer",
+    tagline: "Advanced Anomaly Detection",
+    desc: "Ingest, parse, and query massive volumes of system logs. Sift through thousands of events in seconds to pinpoint operational anomalies and trace attacker footprints."
+  },
+  {
+    id: "pcapparser",
+    label: "PCAP Parser",
+    tagline: "Deep Packet Inspection",
+    desc: "Perform forensic network analysis. Upload raw PCAP files to reconstruct traffic flows, extract transferred files, and uncover hidden, malicious network communications."
+  },
+  {
+    id: "tools",
+    label: "Tools",
+    tagline: "The Threat Hunter's Utility Belt",
+    desc: "A specialized toolkit granting rapid access to IP reputation lookups, geolocation tracking, hash verification, and swift OSINT capabilities."
+  }
+];
+
+// --- The Interactive Sliding Component ---
+export function FeatureShowcase({ setTab }) {
+  const [activeId, setActiveId] = useState(FEATURES[0].id);
+  const activeFeature = FEATURES.find(f => f.id === activeId);
+
+  return (
+    <div className="showcase-container animate-slide" style={{ marginTop: '0px' }}>
+      
+      {/* Centered, wrapped tab grid without arrows */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+        <div className="showcase-tabs-grid">
+          {FEATURES.map((feature) => (
+            <button
+              key={feature.id}
+              className={`showcase-tab ${activeId === feature.id ? "active" : ""}`}
+              onClick={() => setActiveId(feature.id)}
+            >
+              {feature.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="showcase-content-card glass-panel hover-card" key={activeId}>
+        <div className="showcase-text-content">
+          
+          <h3 className="h1" style={{ fontSize: 32, margin: "0 0 8px 0", letterSpacing: "-0.5px", background: "none", color: "#fff", WebkitTextFillColor: "#fff" }}>
+            {activeFeature.label}
+          </h3>
+          
+          <h4 className="gradient-text" style={{ margin: "0 0 20px 0", fontWeight: 600, fontSize: 18 }}>
+            {activeFeature.tagline}
+          </h4>
+          
+          <p style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: 16, lineHeight: 1.6, margin: 0, maxWidth: "90%" }}>
+            {activeFeature.desc}
+          </p>
+
+          <button
+            className="btn-glass"
+            style={{ marginTop: 32 }}
+            onClick={() => setTab(activeFeature.id)}
+          >
+            Launch {activeFeature.label}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // --- Smooth Fade In ---
 export function FadeIn({ children, delay = 0 }) {
@@ -32,77 +124,8 @@ export function FadeIn({ children, delay = 0 }) {
   );
 }
 
-// --- Interactive Info Tabs Component ---
-function InfoTabs() {
-  const [activeTab, setActiveTab] = useState(0);
-
-  const tabs = [
-    {
-      id: 0,
-      icon: <EyeIcon />,
-      title: "1. See Everything",
-      headline: "We monitor your network with zero blind spots.",
-      content: "IntelliCloud quietly sits on your network, taking split-second snapshots of all traffic. We maintain deep visibility into every packet, connection, and payload, ensuring absolutely nothing slips by unnoticed."
-    },
-    {
-      id: 1,
-      icon: <TranslateIcon />,
-      title: "2. Understand Anything",
-      headline: "We translate raw data into plain English.",
-      content: "When suspicious activity is detected, you usually get a confusing wall of hex and numbers. Our engine instantly analyzes the attacker's payload and tells you exactly what they are doing, like: 'Someone is probing your database for vulnerabilities.'"
-    },
-    {
-      id: 2,
-      icon: <ActivityIcon />,
-      title: "3. Absolute Observation",
-      headline: "Deep intelligence, zero interference.",
-      content: "We are the ultimate observers. IntelliCloud does not block traffic or disrupt your infrastructure. Instead, we give your security team the critical context, historical trends, and translated intelligence they need to make the right decisions."
-    }
-  ];
-
-  return (
-    <div className="glass-panel" style={{ padding: '40px', borderRadius: '24px', marginTop: '60px' }}>
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '20px', overflowX: 'auto' }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: activeTab === tab.id ? '#fff' : 'rgba(255,255,255,0.4)',
-              fontSize: '16px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 20px',
-              borderRadius: '30px',
-              backgroundColor: activeTab === tab.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-              transition: 'all 0.3s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {tab.icon}
-            {tab.title}
-          </button>
-        ))}
-      </div>
-      
-      <div style={{ minHeight: '180px' }}>
-        <h3 style={{ fontSize: '28px', fontWeight: 600, margin: '0 0 16px 0', color: '#fff' }}>
-          {tabs[activeTab].headline}
-        </h3>
-        <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, maxWidth: '800px', margin: 0 }}>
-          {tabs[activeTab].content}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export default function Home({ user }) {
+// --- Main Home Component ---
+export default function Home({ user, setTab }) {
   const displayName = user?.displayName || 'User';
   const firstName = displayName.split(' ')[0];
 
@@ -157,7 +180,8 @@ export default function Home({ user }) {
           <div style={{ textAlign: 'center', marginTop: '80px', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>How IntelliCloud Works</h2>
           </div>
-          <InfoTabs />
+          
+          <FeatureShowcase setTab={setTab} />
         </FadeIn>
 
         {/* 3. THE TEAM */}

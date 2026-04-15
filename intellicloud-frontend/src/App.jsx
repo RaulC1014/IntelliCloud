@@ -575,7 +575,7 @@ function AppShell({ user, onSignOut }) {
   const renderTab = () => {
     switch (tab) {
       case "home":
-        return <Home user={user} />;
+        return <Home user={user} setTab={setTab} />;
       case "dashboard":
         return <Dashboard />;
       case "decipher":
@@ -605,20 +605,35 @@ function AppShell({ user, onSignOut }) {
 
       {/* Added relative positioning and zIndex so the UI sits above the orbs */}
       <div className="container animate-fade" style={{ position: 'relative', zIndex: 1 }}>
-      <div className="header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, width: "100%" }}>
+      <div className="header-container">
           
-          {/* 1. LEFT ZONE: Brand & Logo */}
-          <div style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+          {/* --- TOP ROW: Brand (Left) & User Controls (Right) --- */}
+          <div className="header-top-bar">
+            
             <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <img src={logoImg} alt="IC" className="logo" />
               <span className="brand-title" style={{ fontSize: 22, letterSpacing: "-0.5px" }}>
                 IntelliCloud
               </span>
             </div>
+
+            <div className="user-controls">
+              <span className="user-welcome">
+                {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
+              </span>
+
+              <button 
+                className="btn" 
+                onClick={onSignOut} 
+                style={{ padding: '8px 20px', borderRadius: '10px', fontSize: '13px', flexShrink: 0 }}
+              >
+                Sign out
+              </button>
+            </div>
           </div>
 
-          {/* 2. CENTER ZONE: The Tabs */}
-          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+          {/* --- BOTTOM ROW: Navigation Tabs (Centered) --- */}
+          <div className="header-nav-bar">
             <div className="tabs">
               {tabs.map(({ id, label, Icon }) => (
                 <button
@@ -632,21 +647,6 @@ function AppShell({ user, onSignOut }) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* 3. RIGHT ZONE: User Info & Sign Out */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 24 }}>
-            <span style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.7)" }}>
-              {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
-            </span>
-
-            <button 
-              className="btn" 
-              onClick={onSignOut} 
-              style={{ padding: '8px 20px', borderRadius: '10px', fontSize: '13px' }}
-            >
-              Sign out
-            </button>
           </div>
 
         </div>
