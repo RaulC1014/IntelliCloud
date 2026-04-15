@@ -13,7 +13,7 @@ import Decipher from "./pages/Decipher.jsx";
 import Devices from "./pages/Devices.jsx";
 import LogAnalyzer from "./pages/LogAnalyzer.jsx";
 import PcapParser from "./pages/PcapParser.jsx";
-
+import Info from "./pages/Info.jsx";
 import logoImg from "./assets/IntellicloudLogoTransparent.png";
 
 const IDLE_LOGOUT_MS = 15 * 60 * 1000;
@@ -51,6 +51,14 @@ const LogAnalyzerIcon = () => (
 const PcapParserIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M4 5h16a2 2 0 0 1 2 2v4h-2V7H4v10h7v2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm12 7 6 3.5-6 3.5V16h-5v-1h5v-3z" />
+  </svg>
+);
+
+const InfoIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="16" x2="12" y2="12"></line>
+    <line x1="12" y1="8" x2="12.01" y2="8"></line>
   </svg>
 );
 
@@ -542,42 +550,44 @@ function AppShell({ user, onSignOut }) {
       { id: "devices", label: "Devices", Icon: DevicesIcon },
       { id: "log-analyzer", label: "Log Analyzer", Icon: LogAnalyzerIcon },
       { id: "pcapparser", label: "PCAP Parser", Icon: PcapParserIcon },
+      { id: "info", label: "Info", Icon: InfoIcon },
     ],
     []
   );
 
   const renderTab = () => {
     switch (tab) {
-      case "home":
-        return <Home user={user} />;
-      case "dashboard":
-        return <Dashboard />;
-      case "decipher":
-        return <Decipher />;
-      case "devices":
-        return <Devices />;
-      case "log-analyzer":
-        return <LogAnalyzer />;
-      case "pcapparser":
-        return <PcapParser/>
-      default:
-        return <Home user={user} />;
+      case "home": return <Home user={user} />;
+      case "dashboard": return <Dashboard />;
+      case "decipher": return <Decipher />;
+      case "devices": return <Devices />;
+      case "log-analyzer": return <LogAnalyzer />;
+      case "pcapparser": return <PcapParser/>;
+      case "info": return <Info />; 
+      default: return <Home user={user} />;
     }
   };
 
   return (
-    <div className="container animate-fade">
-      <div className="header" style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-          <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img src={logoImg} alt="IC" className="logo" />
-            <span className="brand-title" style={{ fontSize: 22, letterSpacing: "-0.5px" }}>
-              IntelliCloud
-            </span>
-          </div>
+    // WE WRAP THE ENTIRE APP IN THE THEME BACKGROUND
+    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+      
+      {/* GLOBAL AMBIENT ORBS (Applies to all tabs) */}
+      <div className="ambient-orb" style={{ top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'rgba(62, 123, 255, 0.15)' }}></div>
+      <div className="ambient-orb" style={{ bottom: '-20%', right: '-10%', width: '60vw', height: '60vw', background: 'rgba(16, 185, 129, 0.1)' }}></div>
 
-          <div className="tabs">
-                        {tabs.map(({ id, label, Icon }) => (
+      <div className="container animate-fade" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="header" style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+            <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logoImg} alt="IC" className="logo" />
+              <span className="brand-title" style={{ fontSize: 22, letterSpacing: "-0.5px" }}>
+                IntelliCloud
+              </span>
+            </div>
+
+            <div className="tabs">
+              {tabs.map(({ id, label, Icon }) => (
                 <button
                   key={id}
                   className={`tab ${tab === id ? "active" : ""}`}
@@ -588,22 +598,24 @@ function AppShell({ user, onSignOut }) {
                   <span>{label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="p-muted" style={{ margin: 0, fontSize: 14 }}>
+              {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
+            </span>
+
+            <button className="btn" onClick={onSignOut}>
+              Sign out
+            </button>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span className="p-muted" style={{ margin: 0, fontSize: 14 }}>
-            {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
-          </span>
-
-          <button className="btn" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
+        <div style={{ height: 10 }} />
+        {/* RENDER THE ACTIVE PAGE */}
+        {renderTab()}
       </div>
-
-      <div style={{ height: 10 }} />
-      {renderTab()}
     </div>
   );
 }

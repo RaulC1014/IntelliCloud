@@ -4,7 +4,7 @@
   "description": "Senior Capstone Project",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"cd intellicloud-backend && .venv\\Scripts\\activate\\python app.py\" \"cd intellicloud-frontend && npm start\""
+  "dev": "concurrently \"cd intellicloud-backend && .venv/bin/python3 app.py\" \"cd intellicloud-frontend && npm run dev\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
