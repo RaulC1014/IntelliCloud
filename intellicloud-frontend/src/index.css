@@ -55,23 +55,25 @@
 .tabs {
   display: flex;
   align-items: center;
-  gap: 12px; /* Space between buttons */
+  gap: 4px; /* Squeezed the buttons much closer together */
   margin: 0;
-  padding: 0;
-  background: transparent; /* Remove the old box */
-  border: none;
+  padding: 6px; /* Adds a soft boundary around the whole group */
+  background: rgba(255, 255, 255, 0.02); /* Subtle glass container */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px; /* Smooth pill shape enclosing the tabs */
+  backdrop-filter: blur(10px);
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 12px;
+  gap: 6px; /* Tighter gap between the icon and the text */
+  padding: 8px 16px; /* Refined padding for a sleeker profile */
+  border-radius: 10px; /* Fits perfectly inside the pill container */
   cursor: pointer;
   user-select: none;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px; /* Slightly sharper, premium text size */
   letter-spacing: 0.3px;
   color: var(--text-2);
   background: transparent;
@@ -81,13 +83,11 @@
   overflow: hidden;
 }
 
-/* Hover State: Subtle Lift & Glass Background */
+/* Hover State: Subtle Highlight */
 .tab:hover {
-  background: rgba(var(--panel-rgb, 255, 255, 255), 0.05);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
-  transform: translateY(-2px);
-  border-color: rgba(110, 168, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* Removed the vertical lift to keep the uniform "locked-in" feel */
 }
 
 /* Active State: Brand Color & Glow */
@@ -95,20 +95,19 @@
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
   color: white;
   border-color: transparent;
-  box-shadow: 0 4px 16px var(--ring);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--ring);
 }
 
 /* Icon styling within tabs */
 .tab svg {
-  width: 18px;
-  height: 18px;
+  width: 16px; /* Scaled down slightly to match the refined text */
+  height: 16px;
   fill: currentColor;
   transition: transform 0.2s ease;
 }
 
 .tab:hover svg {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 
@@ -359,3 +358,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .page-diagnostics .stat-num { font-weight: 800; font-size: 22px; }
 .page-diagnostics .stat-label { margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+body {
+  background-color: #0A0A0B !important;
+  color: #fff;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.ambient-orb {
+  position: fixed; 
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.5) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

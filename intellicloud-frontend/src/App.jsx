@@ -14,6 +14,7 @@ import Devices from "./pages/Devices.jsx";
 import LogAnalyzer from "./pages/LogAnalyzer.jsx";
 import PcapParser from "./pages/PcapParser.jsx";
 import Cases from "./pages/Cases.jsx";
+import Info from "./pages/Info.jsx"; 
 import Tools from "./pages/Tools.jsx";
 
 import logoImg from "./assets/IntellicloudLogoTransparent.png";
@@ -65,6 +66,14 @@ const CasesIcon = () => (
 const ToolsIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
+  </svg>
+);
+
+const InfoIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="16" x2="12" y2="12"></line>
+    <line x1="12" y1="8" x2="12.01" y2="8"></line>
   </svg>
 );
 
@@ -558,6 +567,7 @@ function AppShell({ user, onSignOut }) {
       { id: "log-analyzer", label: "Log Analyzer", Icon: LogAnalyzerIcon },
       { id: "pcapparser", label: "PCAP Parser", Icon: PcapParserIcon },
       { id: "tools",        label: "Tools",         Icon: ToolsIcon },
+      { id: "info", label: "Info", Icon: InfoIcon },
     ],
     []
   );
@@ -580,24 +590,37 @@ function AppShell({ user, onSignOut }) {
         return <Cases />;
       case "tools":
         return <Tools />;
+      case "info": 
+      return <Info />;
       default:
         return <Home user={user} />;
     }
   };
 
   return (
-    <div className="container animate-fade">
-      <div className="header" style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-          <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img src={logoImg} alt="IC" className="logo" />
-            <span className="brand-title" style={{ fontSize: 22, letterSpacing: "-0.5px" }}>
-              IntelliCloud
-            </span>
+    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+      {/* GLOBAL AMBIENT ORBS */}
+      <div className="ambient-orb" style={{ top: '-10%', left: '-10%', width: '50vw', height: '50vw', background: 'rgba(62, 123, 255, 0.15)' }}></div>
+      <div className="ambient-orb" style={{ bottom: '-20%', right: '-10%', width: '60vw', height: '60vw', background: 'rgba(16, 185, 129, 0.1)' }}></div>
+
+      {/* Added relative positioning and zIndex so the UI sits above the orbs */}
+      <div className="container animate-fade" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, width: "100%" }}>
+          
+          {/* 1. LEFT ZONE: Brand & Logo */}
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+            <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logoImg} alt="IC" className="logo" />
+              <span className="brand-title" style={{ fontSize: 22, letterSpacing: "-0.5px" }}>
+                IntelliCloud
+              </span>
+            </div>
           </div>
 
-          <div className="tabs">
-                        {tabs.map(({ id, label, Icon }) => (
+          {/* 2. CENTER ZONE: The Tabs */}
+          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <div className="tabs">
+              {tabs.map(({ id, label, Icon }) => (
                 <button
                   key={id}
                   className={`tab ${tab === id ? "active" : ""}`}
@@ -608,22 +631,30 @@ function AppShell({ user, onSignOut }) {
                   <span>{label}</span>
                 </button>
               ))}
+            </div>
           </div>
+
+          {/* 3. RIGHT ZONE: User Info & Sign Out */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 24 }}>
+            <span style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.7)" }}>
+              {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
+            </span>
+
+            <button 
+              className="btn" 
+              onClick={onSignOut} 
+              style={{ padding: '8px 20px', borderRadius: '10px', fontSize: '13px' }}
+            >
+              Sign out
+            </button>
+          </div>
+
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span className="p-muted" style={{ margin: 0, fontSize: 14 }}>
-            {user?.displayName ? `Welcome, ${user.displayName}` : user?.email}
-          </span>
 
-          <button className="btn" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
+        <div style={{ height: 10 }} />
+        {renderTab()}
       </div>
-
-      <div style={{ height: 10 }} />
-      {renderTab()}
     </div>
   );
 }
