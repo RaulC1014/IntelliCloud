@@ -129,7 +129,7 @@ function JWTDecoder() {
 
   const JsonBlock = ({ data }) => (
     <pre style={{
-      background: 'var(--panel-2)', border: '1px solid var(--border)',
+      background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)',
       borderRadius: 6, padding: 16, fontSize: 13, fontFamily: 'monospace',
       overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0
     }}>
@@ -140,9 +140,9 @@ function JWTDecoder() {
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
-        <label className="label">JWT Token</label>
+        <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>JWT Token</label>
         <textarea
-          className="input mono"
+          className="input glass-panel mono"
           rows={4}
           placeholder="Paste a JWT token here (eyJ...)"
           value={token}
@@ -152,36 +152,36 @@ function JWTDecoder() {
       </div>
 
       {decoded?.error && (
-        <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#f87171', fontSize: 13 }}>
+        <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: '#f87171', fontSize: 13, marginTop: 16 }}>
           {decoded.error}
         </div>
       )}
 
       {decoded && !decoded.error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
 
           {/* Status bar */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {decoded.expired !== null && (
-              <span className={`badge ${decoded.expired ? 'high' : 'low'}`}>
+              <span className="badge glass-panel" style={{ borderColor: decoded.expired ? "rgba(239,68,68,0.4)" : "rgba(46, 204, 113, 0.4)", color: decoded.expired ? "#f87171" : "#2ecc71" }}>
                 {decoded.expired ? '⚠ EXPIRED' : '✓ VALID (not expired)'}
               </span>
             )}
-            {decoded.issuedAt && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Issued: {decoded.issuedAt}</span>}
-            {decoded.expiresAt && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Expires: {decoded.expiresAt}</span>}
+            {decoded.issuedAt && <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', display: 'flex', alignItems: 'center' }}>Issued: {decoded.issuedAt}</span>}
+            {decoded.expiresAt && <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', display: 'flex', alignItems: 'center' }}>Expires: {decoded.expiresAt}</span>}
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--brand)', marginBottom: 6 }}>HEADER</div>
+            <div className="gradient-text" style={{ fontWeight: 700, fontSize: 12, marginBottom: 6 }}>HEADER</div>
             <JsonBlock data={decoded.header} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--brand)', marginBottom: 6 }}>PAYLOAD</div>
+            <div className="gradient-text" style={{ fontWeight: 700, fontSize: 12, marginBottom: 6 }}>PAYLOAD</div>
             <JsonBlock data={decoded.payload} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>SIGNATURE (not verified — client-side only)</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-2)', wordBreak: 'break-all', padding: '8px 12px', background: 'var(--panel-2)', borderRadius: 6, border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 6 }}>SIGNATURE (not verified — client-side only)</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'rgba(255, 255, 255, 0.6)', wordBreak: 'break-all', padding: '8px 12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 6, border: '1px solid rgba(255, 255, 255, 0.05)' }}>
               {decoded.signature}
             </div>
           </div>
@@ -236,10 +236,10 @@ function SubnetCalc() {
   }, [input]);
 
   const Row = ({ label, value, mono = true, badge }) => (
-    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-      <td style={{ padding: '8px 12px', color: 'var(--text-2)', fontWeight: 600, width: '40%' }}>{label}</td>
+    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+      <td style={{ padding: '8px 12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: 600, width: '40%' }}>{label}</td>
       <td style={{ padding: '8px 12px', fontFamily: mono ? 'monospace' : undefined }}>
-        {badge ? <span className={`badge ${badge}`}>{value}</span> : value}
+        {badge ? <span className="badge glass-panel">{value}</span> : value}
       </td>
     </tr>
   );
@@ -247,9 +247,9 @@ function SubnetCalc() {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <label className="label">IP Address / CIDR</label>
+        <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>IP Address / CIDR</label>
         <input
-          className="input mono"
+          className="input glass-panel mono"
           value={input}
           onChange={e => setInput(e.target.value)}
           placeholder="e.g. 192.168.1.0/24 or 10.0.0.0/8"
@@ -267,11 +267,11 @@ function SubnetCalc() {
             <Row label="Last Host"         value={result.lastHost} />
             <Row label="Usable Hosts"      value={result.totalHosts} />
             <Row label="IP Class"          value={result.ipClass} />
-            <Row label="Private Range"     value={result.isPrivate ? 'Yes (RFC 1918)' : 'No (Public)'} mono={false} badge={result.isPrivate ? 'low' : 'med'} />
+            <Row label="Private Range"     value={result.isPrivate ? 'Yes (RFC 1918)' : 'No (Public)'} mono={false} badge="glass-panel" />
           </tbody>
         </table>
       ) : (
-        <div style={{ color: 'var(--text-2)', fontSize: 13, padding: 12 }}>
+        <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 13, padding: 12 }}>
           Enter a valid CIDR notation like <code>192.168.1.0/24</code>
         </div>
       )}
@@ -324,9 +324,6 @@ const PORT_DB = [
   { port: 31337, proto: 'TCP', service: 'Back Orifice / C2', risk: 'critical', notes: 'Classic backdoor port. Any traffic here is malicious.' },
 ];
 
-const RISK_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
-const RISK_BADGE = { critical: 'crit', high: 'high', medium: 'med', low: 'low' };
-
 function PortReference() {
   const [search, setSearch] = useState('');
 
@@ -346,36 +343,36 @@ function PortReference() {
     <div>
       <div style={{ marginBottom: 16 }}>
         <input
-          className="input"
+          className="input glass-panel"
           placeholder="Search by port number, service name, protocol, or risk level..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', marginBottom: 12 }}>
         {filtered.length} of {PORT_DB.length} ports shown
       </div>
       <div style={{ overflow: 'auto', maxHeight: 520 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--panel-2)' }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700 }}>Port</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700 }}>Proto</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700 }}>Service</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700 }}>Risk</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700 }}>Notes</th>
+            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'transparent' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>Port</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>Proto</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>Service</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>Risk</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>Notes</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(p => (
-              <tr key={p.port} style={{ borderBottom: '1px solid var(--border)' }}>
+              <tr key={p.port} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                 <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{p.port}</td>
-                <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: 'var(--text-2)' }}>{p.proto}</td>
+                <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: 'rgba(255, 255, 255, 0.5)' }}>{p.proto}</td>
                 <td style={{ padding: '8px 12px', fontWeight: 600 }}>{p.service}</td>
                 <td style={{ padding: '8px 12px' }}>
-                  <span className={`badge ${RISK_BADGE[p.risk]}`}>{p.risk}</span>
+                  <span className="badge glass-panel">{p.risk}</span>
                 </td>
-                <td style={{ padding: '8px 12px', color: 'var(--text-2)', maxWidth: 400 }}>{p.notes}</td>
+                <td style={{ padding: '8px 12px', color: 'rgba(255, 255, 255, 0.6)', maxWidth: 400 }}>{p.notes}</td>
               </tr>
             ))}
           </tbody>
@@ -416,9 +413,9 @@ function HashGenerator() {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <label className="label">Input Text</label>
+        <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Input Text</label>
         <textarea
-          className="input mono"
+          className="input glass-panel mono"
           rows={4}
           placeholder="Enter text to hash..."
           value={input}
@@ -426,24 +423,25 @@ function HashGenerator() {
           style={{ resize: 'vertical' }}
         />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', marginBottom: 16 }}>
         ⚠ Client-side only — text never leaves your browser. MD5 is not supported by the Web Crypto API (it is cryptographically broken). Use SHA-256 or higher.
       </div>
       {Object.entries(hashes).map(([alg, hash]) => (
         <div key={alg} style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--brand)' }}>{alg}</span>
+            <span className="gradient-text" style={{ fontWeight: 700, fontSize: 12 }}>{alg}</span>
             <button
+              className="btn-glass"
               onClick={() => copyHash(hash)}
-              style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+              style={{ padding: "4px 10px", fontSize: 11 }}
             >
               Copy
             </button>
           </div>
           <div style={{
             fontFamily: 'monospace', fontSize: 12, padding: '8px 12px',
-            background: 'var(--panel-2)', borderRadius: 6,
-            border: '1px solid var(--border)', wordBreak: 'break-all', color: 'var(--text-1)'
+            background: 'rgba(255, 255, 255, 0.02)', borderRadius: 6,
+            border: '1px solid rgba(255, 255, 255, 0.05)', wordBreak: 'break-all', color: '#fff'
           }}>
             {hash}
           </div>
@@ -489,17 +487,17 @@ export default function Decipher() {
     <div className="shell page-decipher animate-fade" style={{ maxWidth: 1400, marginTop: 20 }}>
 
       {/* Top tab switcher */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--panel-2)', padding: 4, borderRadius: 8, border: '1px solid var(--border)', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(255, 255, 255, 0.03)', padding: 6, borderRadius: 16, border: '1px solid rgba(255, 255, 255, 0.05)', width: 'fit-content', backdropFilter: 'blur(10px)' }}>
         {[{ id: 'ciphers', label: '🔒 Ciphers & Encoders' }, { id: 'tools', label: '🛠 Security Tools' }].map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: '8px 20px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              padding: '8px 20px', borderRadius: 10, border: '1px solid transparent', cursor: 'pointer',
               fontWeight: 600, fontSize: 13,
-              background: tab === t.id ? 'var(--brand)' : 'transparent',
-              color: tab === t.id ? '#fff' : 'var(--text-2)',
-              transition: 'all 0.15s',
+              background: tab === t.id ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+              color: tab === t.id ? '#fff' : 'rgba(255, 255, 255, 0.5)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
             {t.label}
@@ -512,22 +510,23 @@ export default function Decipher() {
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, minHeight: '70vh' }}>
 
           {/* Cipher sidebar */}
-          <div className="card animate-slide" style={{ padding: 0, overflow: 'hidden', height: 'fit-content' }}>
-            <div style={{ padding: '16px 20px', background: 'var(--panel-2)', borderBottom: '1px solid var(--border)' }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>Ciphers & Encoders</h3>
+          <div className="card glass-panel animate-slide" style={{ padding: 0, overflow: 'hidden', height: 'fit-content' }}>
+            <div style={{ padding: '16px 20px', background: 'transparent', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <h3 className="gradient-text" style={{ margin: 0, fontSize: 15 }}>Ciphers & Encoders</h3>
             </div>
             <div style={{ padding: 10 }}>
               {Object.keys(ciphers).map(key => (
                 <button
                   key={key}
                   onClick={() => { setActiveCipher(key); setCipherKey(ciphers[key].defaultKey || ''); setInput(''); setOutput(''); }}
-                  className="btn"
                   style={{
-                    width: '100%', justifyContent: 'flex-start', marginBottom: 6,
-                    background: activeCipher === key ? 'var(--brand)' : 'transparent',
-                    color: activeCipher === key ? 'white' : 'var(--text)',
-                    border: activeCipher === key ? 'none' : '1px solid transparent',
-                    fontWeight: 600, fontSize: 13,
+                    display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'flex-start', marginBottom: 6,
+                    padding: '10px 14px', borderRadius: '8px',
+                    background: activeCipher === key ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                    color: activeCipher === key ? 'white' : 'rgba(255, 255, 255, 0.6)',
+                    border: '1px solid transparent',
+                    fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {ciphers[key].name}
@@ -537,20 +536,21 @@ export default function Decipher() {
           </div>
 
           {/* Cipher workspace */}
-          <div className="card animate-slide animate-delay-1" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="card glass-panel hover-card animate-slide animate-delay-1" style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ fontSize: 22, margin: 0 }}>{ciphers[activeCipher].name}</h2>
-                <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>{ciphers[activeCipher].desc}</p>
+                <h2 className="gradient-text" style={{ fontSize: 22, margin: 0 }}>{ciphers[activeCipher].name}</h2>
+                <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.5)', fontSize: 13 }}>{ciphers[activeCipher].desc}</p>
               </div>
-              <div style={{ background: 'var(--input)', padding: 4, borderRadius: 8, display: 'flex' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: 4, borderRadius: 8, display: 'flex', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                 {['encode','decode'].map(m => (
                   <button key={m} onClick={() => setMode(m)} style={{
                     padding: '8px 20px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600,
-                    background: mode === m ? 'var(--panel)' : 'transparent',
-                    color: mode === m ? 'var(--brand)' : 'var(--muted)',
+                    background: mode === m ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                    color: mode === m ? '#fff' : 'rgba(255, 255, 255, 0.4)',
                     boxShadow: mode === m ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
                     textTransform: 'capitalize',
+                    transition: 'all 0.2s ease'
                   }}>{m}</button>
                 ))}
               </div>
@@ -558,29 +558,29 @@ export default function Decipher() {
 
             {ciphers[activeCipher].requiresKey && (
               <div style={{ marginBottom: 16 }}>
-                <label className="label" style={{ color: 'var(--brand)' }}>{ciphers[activeCipher].keyLabel}</label>
-                <input className="input" value={cipherKey} onChange={e => setCipherKey(e.target.value)} placeholder={ciphers[activeCipher].defaultKey} style={{ borderColor: 'var(--brand)' }} />
+                <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{ciphers[activeCipher].keyLabel}</label>
+                <input className="input glass-panel" value={cipherKey} onChange={e => setCipherKey(e.target.value)} placeholder={ciphers[activeCipher].defaultKey} />
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, flex: 1, alignItems: 'start' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="label">Input</label>
-                <textarea className="input mono" style={{ flex: 1, resize: 'none', minHeight: 380, fontSize: 13, lineHeight: 1.6 }}
+                <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Input</label>
+                <textarea className="input glass-panel mono" style={{ flex: 1, resize: 'none', minHeight: 380, fontSize: 13, lineHeight: 1.6 }}
                   placeholder="Paste text here..." value={input} onChange={e => setInput(e.target.value)} />
               </div>
 
               {/* Swap button */}
               <div style={{ display: 'flex', alignItems: 'center', paddingTop: 28 }}>
-                <button className="btn" onClick={swapIO} title="Swap input and output" style={{ padding: '10px 12px' }}>⇄</button>
+                <button className="btn-glass" onClick={swapIO} title="Swap input and output" style={{ padding: '10px 12px', borderRadius: '50%' }}>⇄</button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <label className="label">Result</label>
-                  <button onClick={copyOutput} style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Copy</button>
+                  <label className="label" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Result</label>
+                  <button className="btn-glass" onClick={copyOutput} style={{ padding: '2px 8px', fontSize: 11 }}>Copy</button>
                 </div>
-                <textarea className="input mono" readOnly style={{ flex: 1, resize: 'none', minHeight: 380, fontSize: 13, lineHeight: 1.6, background: 'var(--panel-2)', borderColor: 'var(--brand)' }}
+                <textarea className="input glass-panel mono" readOnly style={{ flex: 1, resize: 'none', minHeight: 380, fontSize: 13, lineHeight: 1.6, background: 'rgba(255, 255, 255, 0.02)' }}
                   placeholder="Result will appear here..." value={output} />
               </div>
             </div>
@@ -593,19 +593,21 @@ export default function Decipher() {
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, minHeight: '70vh' }}>
 
           {/* Tools sidebar */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden', height: 'fit-content' }}>
-            <div style={{ padding: '16px 20px', background: 'var(--panel-2)', borderBottom: '1px solid var(--border)' }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>Security Tools</h3>
+          <div className="card glass-panel" style={{ padding: 0, overflow: 'hidden', height: 'fit-content' }}>
+            <div style={{ padding: '16px 20px', background: 'transparent', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <h3 className="gradient-text" style={{ margin: 0, fontSize: 15 }}>Security Tools</h3>
             </div>
             <div style={{ padding: 10 }}>
               {SECURITY_TOOLS.map(t => (
-                <button key={t.id} onClick={() => setActiveTool(t.id)} className="btn"
+                <button key={t.id} onClick={() => setActiveTool(t.id)} 
                   style={{
-                    width: '100%', justifyContent: 'flex-start', marginBottom: 6,
-                    background: activeTool === t.id ? 'var(--brand)' : 'transparent',
-                    color: activeTool === t.id ? 'white' : 'var(--text)',
-                    border: activeTool === t.id ? 'none' : '1px solid transparent',
+                    display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'flex-start', marginBottom: 6,
+                    padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
+                    background: activeTool === t.id ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                    color: activeTool === t.id ? 'white' : 'rgba(255, 255, 255, 0.6)',
+                    border: '1px solid transparent',
                     fontWeight: 600, fontSize: 13, gap: 8,
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   <span>{t.icon}</span> {t.name}
@@ -615,9 +617,9 @@ export default function Decipher() {
           </div>
 
           {/* Active tool */}
-          <div className="card">
-            <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-              <h2 style={{ fontSize: 20, margin: 0 }}>
+          <div className="card glass-panel hover-card">
+            <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <h2 className="gradient-text" style={{ fontSize: 20, margin: 0 }}>
                 {SECURITY_TOOLS.find(t => t.id === activeTool)?.icon}{' '}
                 {SECURITY_TOOLS.find(t => t.id === activeTool)?.name}
               </h2>
