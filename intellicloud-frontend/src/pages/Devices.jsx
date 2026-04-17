@@ -311,16 +311,16 @@ export default function Devices() {
 
   const trustBadgeStyle = (value) => {
     const v = normalizeTrustStatus(value);
-    if (v === "trusted") return { background: "rgba(34,197,94,0.15)", color: "#86efac" };
-    if (v === "untrusted") return { background: "rgba(239,68,68,0.15)", color: "#fca5a5" };
-    if (v === "monitor") return { background: "rgba(245,158,11,0.15)", color: "#fcd34d" };
-    return { background: "rgba(148,163,184,0.15)", color: "#cbd5e1" };
+    if (v === "trusted") return { borderColor: "rgba(46, 204, 113, 0.4)", color: "#2ecc71" };
+    if (v === "untrusted") return { borderColor: "rgba(239, 68, 68, 0.4)", color: "#f87171" };
+    if (v === "monitor") return { borderColor: "rgba(245, 158, 11, 0.4)", color: "#fbbf24" };
+    return { borderColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.5)" };
   };
 
   return (
     <div className="shell animate-fade" style={{ maxWidth: 1400 }}>
       <div
-        className="card"
+        className="card glass-panel hover-card"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -340,8 +340,8 @@ export default function Devices() {
             }}
           />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Devices</div>
-            <div className="helper">
+            <div className="gradient-text" style={{ fontWeight: 800, fontSize: 18 }}>Devices</div>
+            <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.5)", marginTop: 2 }}>
               Manage known devices and view recent activity
               {running ? (connected ? " · Live stream" : " · Reconnecting…") : " · Paused"}
               {stale ? " · feed stale" : ""}
@@ -352,14 +352,14 @@ export default function Devices() {
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <span className="chip">{summary.total} devices</span>
+          <span className="badge glass-panel">{summary.total} devices</span>
           {running ? (
-            <button className="btn" onClick={() => setRunning(false)}>⏸ Pause</button>
+            <button className="btn-glass" onClick={() => setRunning(false)}>⏸ Pause</button>
           ) : (
-            <button className="btn primary" onClick={() => setRunning(true)}>▶ Play</button>
+            <button className="btn-glass" onClick={() => setRunning(true)}>▶ Play</button>
           )}
-          <button className="btn" onClick={loadAssets}>Refresh Devices</button>
-          <button className="btn" onClick={exportHostsCSV}>Export CSV</button>
+          <button className="btn-glass" onClick={loadAssets}>Refresh Devices</button>
+          <button className="btn-glass" onClick={exportHostsCSV}>Export CSV</button>
         </div>
       </div>
 
@@ -377,14 +377,14 @@ export default function Devices() {
           { label: "Trusted", value: summary.trusted },
           { label: "Needs Review", value: summary.needsReview },
         ].map((card) => (
-          <div key={card.label} className="card" style={{ padding: 16 }}>
-            <div className="helper" style={{ marginBottom: 8 }}>{card.label}</div>
+          <div key={card.label} className="card glass-panel hover-card" style={{ padding: 16 }}>
+            <div style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.6)", fontWeight: 600, marginBottom: 8, letterSpacing: 0.5, textTransform: "uppercase" }}>{card.label}</div>
             <div style={{ fontSize: 28, fontWeight: 800 }}>{card.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card glass-panel hover-card" style={{ marginBottom: 16, padding: 16 }}>
         <div
           style={{
             display: "grid",
@@ -393,14 +393,14 @@ export default function Devices() {
           }}
         >
           <input
-            className="input"
+            className="input glass-panel"
             value={search}
             placeholder="Search by IP, name, or notes"
             onChange={(e) => setSearch(e.target.value)}
           />
 
           <select
-            className="input"
+            className="select glass-panel"
             value={trustFilter}
             onChange={(e) => setTrustFilter(e.target.value)}
           >
@@ -413,45 +413,52 @@ export default function Devices() {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 10 }}>
-          <h3 className="h1" style={{ margin: 0, fontSize: 18 }}>Device Inventory</h3>
-          <span className="helper">Click a row for details</span>
+      <div className="card glass-panel" style={{ overflow: "hidden", padding: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+          <h3 className="gradient-text" style={{ margin: 0, fontSize: 16 }}>Device Inventory</h3>
+          <span style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>Click a row for details</span>
         </div>
 
         <div style={{ overflow: "auto", maxHeight: 560 }}>
-          <table className="table">
+          <table className="table" style={{ width: "100%" }}>
             <thead>
-              <tr>
-                <th style={{ width: 170 }}>IP</th>
-                <th style={{ width: 220 }}>Name</th>
-                <th style={{ width: 140 }}>Trust</th>
-                <th style={{ width: 160 }}>Last Seen</th>
-                <th style={{ width: 100 }}>Events</th>
-                <th>Notes</th>
+              <tr style={{ background: "transparent" }}>
+                <th style={{ width: 170, color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>IP</th>
+                <th style={{ width: 220, color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>Name</th>
+                <th style={{ width: 140, color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>Trust</th>
+                <th style={{ width: 160, color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>Last Seen</th>
+                <th style={{ width: 100, color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>Events</th>
+                <th style={{ color: "rgba(255, 255, 255, 0.6)", background: "transparent" }}>Notes</th>
               </tr>
             </thead>
             <tbody>
               {filteredHosts.map((h) => (
-                <tr key={h.ip} style={{ cursor: "pointer" }} onClick={() => setSelectedIp(h.ip)}>
+                <tr 
+                  key={h.ip} 
+                  style={{ cursor: "pointer", transition: "background 0.2s ease" }} 
+                  onClick={() => setSelectedIp(h.ip)}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
                   <td className="mono" style={{ fontWeight: 700 }}>{h.ip}</td>
-                  <td>{h.displayName || <span className="helper">Unnamed device</span>}</td>
+                  <td>{h.displayName || <span style={{ color: "rgba(255, 255, 255, 0.4)", fontStyle: "italic" }}>Unnamed device</span>}</td>
                   <td>
-                    <span className="chip" style={trustBadgeStyle(h.trustStatus)}>
+                    <span className="badge glass-panel" style={{ ...trustBadgeStyle(h.trustStatus), background: "transparent" }}>
                       {normalizeTrustStatus(h.trustStatus)}
                     </span>
                   </td>
-                  <td className="mono">
+                  <td className="mono" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
                     {h.last ? fmtAgo(h.last) : "—"}
                   </td>
-                  <td className="mono">{h.seen}</td>
+                  <td className="mono" style={{ color: "rgba(255, 255, 255, 0.6)" }}>{h.seen}</td>
                   <td style={{ maxWidth: 360 }}>
                     <div
-                      className="helper"
                       style={{
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
+                        color: "rgba(255, 255, 255, 0.5)",
+                        fontSize: 13
                       }}
                     >
                       {h.notes || "—"}
@@ -462,7 +469,7 @@ export default function Devices() {
 
               {!filteredHosts.length && (
                 <tr>
-                  <td colSpan="6" className="helper">
+                  <td colSpan="6" style={{ padding: 40, textAlign: "center", color: "rgba(255, 255, 255, 0.5)" }}>
                     No matching devices. Generate traffic or save a device record from the backend.
                   </td>
                 </tr>
@@ -477,48 +484,52 @@ export default function Devices() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.45)",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             justifyContent: "flex-end",
             zIndex: 1000,
           }}
         >
           <div
-            className="card"
+            className="glass-panel"
             style={{
               width: 560,
-              height: "100%",
+              height: "100vh",
               borderRadius: 0,
+              borderLeft: "1px solid rgba(255, 255, 255, 0.05)",
+              background: "rgba(11, 15, 23, 0.85)",
               overflow: "auto",
-              padding: 18,
+              padding: "24px",
+              boxShadow: "-4px 0 24px rgba(0,0,0,0.3)",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  Device: <span className="mono">{selected.ip}</span>
+                <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 4 }}>
+                  Device: <span className="mono gradient-text">{selected.ip}</span>
                 </div>
-                <div className="helper">
+                <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)" }}>
                   Last seen: {selected.host?.last ? fmtAgo(selected.host.last) : "—"} · Events: {selected.host?.seen ?? 0}
                 </div>
               </div>
-              <button className="btn" onClick={() => setSelectedIp(null)}>✕</button>
+              <button className="btn-glass" onClick={() => setSelectedIp(null)} style={{ padding: "8px 12px", borderRadius: "50%" }}>✕</button>
             </div>
 
-            <div style={{ marginTop: 16 }}>
-              <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>Device Name</div>
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Device Name</div>
               <input
-                className="input"
+                className="input glass-panel"
                 value={editName}
                 placeholder="e.g. Office PC, NAS, Laptop"
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
 
-            <div style={{ marginTop: 12 }}>
-              <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>Trust Status</div>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Trust Status</div>
               <select
-                className="input"
+                className="select glass-panel"
                 value={editTrustStatus}
                 onChange={(e) => setEditTrustStatus(e.target.value)}
               >
@@ -529,56 +540,57 @@ export default function Devices() {
               </select>
             </div>
 
-            <div style={{ marginTop: 12 }}>
-              <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>Notes</div>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Notes</div>
               <textarea
-                className="input"
+                className="input glass-panel"
                 rows={4}
                 value={editNotes}
                 placeholder="Add context about this device"
                 onChange={(e) => setEditNotes(e.target.value)}
+                style={{ resize: "vertical" }}
               />
             </div>
 
-            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-              <button className="btn primary" onClick={saveSelectedAsset} disabled={savingAsset}>
-                {savingAsset ? "Saving..." : "Save Device"}
+            <div style={{ marginTop: 20, display: "flex", gap: 8 }}>
+              <button className="btn-glass" onClick={saveSelectedAsset} disabled={savingAsset} style={{ width: "100%", justifyContent: "center" }}>
+                {savingAsset ? "Saving..." : "Save Device Details"}
               </button>
             </div>
 
-            <div className="grid-halves" style={{ marginTop: 16 }}>
-              <div className="card" style={{ padding: 12 }}>
-                <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>Top Peers</div>
-                <table className="table">
+            <div className="grid-halves" style={{ marginTop: 24, gap: 16 }}>
+              <div className="card glass-panel" style={{ padding: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12, textTransform: "uppercase" }}>Top Peers</div>
+                <table className="table" style={{ width: "100%" }}>
                   <tbody>
                     {selected.topPeers.map((x) => (
-                      <tr key={x.k}>
-                        <td className="mono">{x.k}</td>
-                        <td className="mono" style={{ width: 80, textAlign: "right" }}>{x.v}</td>
+                      <tr key={x.k} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                        <td className="mono" style={{ padding: "6px 0", color: "rgba(255, 255, 255, 0.7)" }}>{x.k}</td>
+                        <td className="mono" style={{ padding: "6px 0", width: 80, textAlign: "right", color: "rgba(255, 255, 255, 0.4)" }}>{x.v}</td>
                       </tr>
                     ))}
                     {!selected.topPeers.length && (
                       <tr>
-                        <td className="helper">—</td>
+                        <td style={{ color: "rgba(255, 255, 255, 0.4)", padding: "6px 0" }}>—</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
 
-              <div className="card" style={{ padding: 12 }}>
-                <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>Top Ports</div>
-                <table className="table">
+              <div className="card glass-panel" style={{ padding: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12, textTransform: "uppercase" }}>Top Ports</div>
+                <table className="table" style={{ width: "100%" }}>
                   <tbody>
                     {selected.topPorts.map((x) => (
-                      <tr key={x.k}>
-                        <td className="mono">{x.k}</td>
-                        <td className="mono" style={{ width: 80, textAlign: "right" }}>{x.v}</td>
+                      <tr key={x.k} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                        <td className="mono" style={{ padding: "6px 0", color: "rgba(255, 255, 255, 0.7)" }}>{x.k}</td>
+                        <td className="mono" style={{ padding: "6px 0", width: 80, textAlign: "right", color: "rgba(255, 255, 255, 0.4)" }}>{x.v}</td>
                       </tr>
                     ))}
                     {!selected.topPorts.length && (
                       <tr>
-                        <td className="helper">—</td>
+                        <td style={{ color: "rgba(255, 255, 255, 0.4)", padding: "6px 0" }}>—</td>
                       </tr>
                     )}
                   </tbody>
@@ -586,36 +598,36 @@ export default function Devices() {
               </div>
             </div>
 
-            <div style={{ marginTop: 16 }}>
-              <div className="helper" style={{ fontWeight: 800, marginBottom: 6 }}>
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255, 255, 255, 0.8)", marginBottom: 12, textTransform: "uppercase" }}>
                 Recent Events (last {windowSec}s)
               </div>
-              <div style={{ overflow: "auto", maxHeight: 420 }}>
-                <table className="table">
-                  <thead>
+              <div style={{ overflow: "auto", maxHeight: 420, borderRadius: 8, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                <table className="table" style={{ width: "100%", margin: 0 }}>
+                  <thead style={{ background: "rgba(255, 255, 255, 0.02)" }}>
                     <tr>
-                      <th>Time</th>
-                      <th>Src</th>
-                      <th>Dst</th>
-                      <th>Proto</th>
-                      <th>Port</th>
+                      <th style={{ background: "transparent", color: "rgba(255, 255, 255, 0.5)" }}>Time</th>
+                      <th style={{ background: "transparent", color: "rgba(255, 255, 255, 0.5)" }}>Src</th>
+                      <th style={{ background: "transparent", color: "rgba(255, 255, 255, 0.5)" }}>Dst</th>
+                      <th style={{ background: "transparent", color: "rgba(255, 255, 255, 0.5)" }}>Proto</th>
+                      <th style={{ background: "transparent", color: "rgba(255, 255, 255, 0.5)" }}>Port</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selected.recent.map((ev, i) => (
-                      <tr key={i}>
-                        <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                      <tr key={i} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                        <td className="mono" style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.4)" }}>
                           {new Date(eventTimeMs(ev)).toLocaleTimeString()}
                         </td>
                         <td className="mono" style={{ fontSize: 12 }}>{ev?.src}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{ev?.dst}</td>
-                        <td className="mono" style={{ fontSize: 12 }}>{ev?.proto || "—"}</td>
-                        <td className="mono" style={{ fontSize: 12 }}>{ev?.dport ?? "—"}</td>
+                        <td className="mono" style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.6)" }}>{ev?.proto || "—"}</td>
+                        <td className="mono" style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.6)" }}>{ev?.dport ?? "—"}</td>
                       </tr>
                     ))}
                     {!selected.recent.length && (
                       <tr>
-                        <td colSpan="5" className="helper">No recent events for this device.</td>
+                        <td colSpan="5" style={{ padding: 20, textAlign: "center", color: "rgba(255, 255, 255, 0.4)" }}>No recent events for this device.</td>
                       </tr>
                     )}
                   </tbody>

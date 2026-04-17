@@ -43,12 +43,7 @@ const levels = ["All", "Critical", "High", "Medium", "Low", "Info"];
 const alertStatuses = ["All", "open", "acknowledged", "closed"];
 
 const levelBadge = (lvl) => {
-  const key = (lvl || "").toLowerCase();
-  if (key === "critical") return "badge crit";
-  if (key === "high") return "badge high";
-  if (key === "medium") return "badge med";
-  if (key === "low") return "badge low";
-  return "badge ok";
+  return "badge glass-panel";
 };
 
 function AIAgentPanel({ selectedData, onClose }) {
@@ -98,34 +93,34 @@ function AIAgentPanel({ selectedData, onClose }) {
   };
 
   return (
-    <div className={`ai-panel ${selectedData ? "open" : ""}`}>
+    <div className={`ai-panel glass-panel ${selectedData ? "open" : ""}`} style={{ background: "rgba(11, 15, 23, 0.85)" }}>
       <div
         style={{
           padding: 24,
-          borderBottom: "1px solid var(--border)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          background: "var(--panel-2)",
+          background: "transparent",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>IntelliCloud Agent</h3>
+            <h3 className="gradient-text" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>IntelliCloud Agent</h3>
             <div
               style={{
                 fontSize: 11,
-                color: "var(--brand)",
                 textTransform: "uppercase",
                 letterSpacing: 1,
                 fontWeight: 700,
+                color: "rgba(255, 255, 255, 0.6)"
               }}
             >
               {selectedData ? `Target: ${selectedData.src}` : "Standby"}
             </div>
           </div>
         </div>
-        <button className="btn icon-only" onClick={onClose} style={{ background: "transparent", border: "none" }}>
+        <button className="btn-glass" onClick={onClose} style={{ padding: "10px", borderRadius: "50%" }}>
           ✕
         </button>
       </div>
@@ -134,15 +129,15 @@ function AIAgentPanel({ selectedData, onClose }) {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className="ai-message animate-fade"
+            className="ai-message glass-panel animate-fade"
             style={{
-              borderLeft: msg.role === "model" ? "3px solid var(--brand)" : "3px solid var(--text-2)",
-              background: msg.role === "user" ? "transparent" : "var(--panel-2)",
+              borderLeft: msg.role === "model" ? "3px solid rgba(255, 255, 255, 0.4)" : "3px solid rgba(255, 255, 255, 0.1)",
+              background: msg.role === "user" ? "transparent" : "rgba(255, 255, 255, 0.02)",
               marginLeft: msg.role === "user" ? 20 : 0,
               marginRight: msg.role === "user" ? 0 : 20,
             }}
           >
-            <div className="ai-badge" style={{ background: msg.role === "user" ? "var(--text-2)" : undefined }}>
+            <div className="badge glass-panel" style={{ marginBottom: 12 }}>
               {msg.role === "user" ? "You" : "Analyst"}
             </div>
             <div style={{ whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.6 }}>{msg.content}</div>
@@ -150,15 +145,15 @@ function AIAgentPanel({ selectedData, onClose }) {
         ))}
 
         {loading && (
-          <div className="ai-message" style={{ borderLeft: "3px solid var(--brand)" }}>
-            <span className="typing-dot"></span>
-            <span className="typing-dot" style={{ animationDelay: "0.2s" }}></span>
-            <span className="typing-dot" style={{ animationDelay: "0.4s" }}></span>
+          <div className="ai-message glass-panel" style={{ borderLeft: "3px solid rgba(255, 255, 255, 0.4)", background: "rgba(255, 255, 255, 0.02)" }}>
+            <span className="typing-dot" style={{ background: "rgba(255, 255, 255, 0.6)" }}></span>
+            <span className="typing-dot" style={{ background: "rgba(255, 255, 255, 0.6)", animationDelay: "0.2s" }}></span>
+            <span className="typing-dot" style={{ background: "rgba(255, 255, 255, 0.6)", animationDelay: "0.4s" }}></span>
           </div>
         )}
       </div>
 
-      <div style={{ padding: 16, borderTop: "1px solid var(--border)", background: "var(--panel-2)" }}>
+      <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.05)", background: "transparent" }}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -166,7 +161,7 @@ function AIAgentPanel({ selectedData, onClose }) {
           }}
         >
           <input
-            className="input"
+            className="input glass-panel"
             placeholder="Ask a follow-up question..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -646,10 +641,9 @@ export default function Dashboard() {
   
       {/* ── Top toolbar — filters and action buttons ── */}
       <div
-        className="card animate-slide"
+        className="card glass-panel hover-card animate-slide"
         style={{
           marginBottom: 20,
-          padding: 12,
           display: "flex",
           flexWrap: "wrap",
           gap: 16,
@@ -664,7 +658,7 @@ export default function Dashboard() {
               <FilterIcon />
             </div>
             <input
-              className="input"
+              className="input glass-panel"
               placeholder="Filter IP Address..."
               style={{ paddingLeft: 34, width: 220 }}
               value={ipFilter}
@@ -674,7 +668,7 @@ export default function Dashboard() {
   
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: 0.5 }}>SEVERITY:</span>
-            <select className="select" style={{ width: 140 }} value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
+            <select className="select glass-panel" style={{ width: 140 }} value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
               {levels.filter((l) => l !== "Info").map((l) => (
                 <option key={l} value={l}>{l}</option>
               ))}
@@ -683,7 +677,7 @@ export default function Dashboard() {
   
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: 0.5 }}>ROWS:</span>
-            <select className="select" style={{ width: 140 }} value={String(limit)} onChange={(e) => setLimit(Number(e.target.value))}>
+            <select className="select glass-panel" style={{ width: 140 }} value={String(limit)} onChange={(e) => setLimit(Number(e.target.value))}>
               <option value="50">50 Rows</option>
               <option value="100">100 Rows</option>
               <option value="200">200 Rows</option>
@@ -693,7 +687,7 @@ export default function Dashboard() {
   
           {/* Only shows when a filter is active */}
           {(ipFilter || levelFilter !== "All") && (
-            <button className="btn ghost" onClick={() => { setIpFilter(""); setLevelFilter("All"); }} style={{ fontSize: 13 }}>
+            <button className="btn-glass" onClick={() => { setIpFilter(""); setLevelFilter("All"); }}>
               Reset Filters
             </button>
           )}
@@ -702,22 +696,22 @@ export default function Dashboard() {
         {/* Right side — view management buttons */}
         <div style={{ display: "flex", gap: 8 }}>
           {/* Soft clear — filters out events older than now using sinceTs */}
-          <button className="btn" onClick={handleClearTraffic} title="Clear current view">
+          <button className="btn-glass" onClick={handleClearTraffic} title="Clear current view">
             <TrashIcon /> Clear
           </button>
   
           {/* Reloads all stored history from the database */}
-          <button className="btn" onClick={handleReloadTraffic} title="Show all history">
+          <button className="btn-glass" onClick={handleReloadTraffic} title="Show all history">
             <RefreshIcon /> Reload
           </button>
   
           {/* Hard reset — wipes display, resets event counter and SSE cursor */}
-          <button className="btn" onClick={handleResetCursor} title="Hard reset — clears display, resets event counter and stream cursor">
+          <button className="btn-glass" onClick={handleResetCursor} title="Hard reset — clears display, resets event counter and stream cursor">
             ↺ Reset
           </button>
   
           {/* Downloads the current filtered table as a CSV file */}
-          <button className="btn primary" onClick={downloadCSV}>
+          <button className="btn-glass" onClick={downloadCSV}>
             <DownloadIcon /> Export CSV
           </button>
         </div>
@@ -726,17 +720,17 @@ export default function Dashboard() {
       <div className="grid-halves animate-slide animate-delay-1" style={{ alignItems: "start" }}>
   
         {/* ── Live Traffic Feed card ── */}
-        <div className="card" style={{ padding: 0, overflow: "hidden", height: "75vh", display: "flex", flexDirection: "column" }}>
+        <div className="card glass-panel" style={{ padding: 0, overflow: "hidden", height: "75vh", display: "flex", flexDirection: "column" }}>
   
           {/* Card header — SSE status on left, agent controls on right */}
           <div
             style={{
               padding: "16px 20px",
-              borderBottom: "1px solid var(--border)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              background: "var(--panel-2)",
+              background: "transparent",
             }}
           >
             {/* Left — connection dot, title, live/paused badge, running event count */}
@@ -752,10 +746,10 @@ export default function Dashboard() {
                   boxShadow: trafficEnabled ? "0 0 8px var(--success)" : "none",
                 }}
               />
-              <h3 style={{ margin: 0, fontSize: 16 }}>Live Traffic Feed</h3>
+              <h3 className="gradient-text" style={{ margin: 0, fontSize: 16 }}>Live Traffic Feed</h3>
   
               {/* Reflects SSE connection state — Live, Reconnecting, or Paused */}
-              <span className="badge ghost" style={{ marginLeft: 10 }}>
+              <span className="badge glass-panel" style={{ marginLeft: 10 }}>
                 {trafficEnabled ? (trafficConnected ? "Live" : "Reconnecting…") : "Paused"}
                 {trafficLastId != null ? ` · lastId=${trafficLastId}` : ""}
               </span>
@@ -780,15 +774,9 @@ export default function Dashboard() {
               {/* Controls the actual ic_agent.py process running on the backend.
                   Shows Checking on load, then Start Agent / Stop Agent */}
               <button
-                className={`btn ${agentRunning ? "" : "primary"}`}
+                className="btn-glass"
                 onClick={toggleAgent}
                 disabled={agentLoading || !agentChecked}
-                style={{
-                  background: agentRunning ? "rgba(239,68,68,0.15)" : undefined,
-                  borderColor: agentRunning ? "rgba(239,68,68,0.4)" : undefined,
-                  color: agentRunning ? "#f87171" : undefined,
-                  minWidth: 120,
-                }}
               >
                 {!agentChecked
                   ? "Checking..."
@@ -803,7 +791,7 @@ export default function Dashboard() {
                   Pauses the frontend display — agent keeps capturing in the background */}
               {agentRunning && (
                 <button
-                  className="btn"
+                  className="btn-glass"
                   onClick={toggleStreamPause}
                   title={streamPaused ? "Resume live display" : "Pause live display (agent keeps capturing)"}
                 >
@@ -818,9 +806,9 @@ export default function Dashboard() {
           {streamPaused && agentRunning && (
             <div style={{
               padding: "6px 20px",
-              background: "rgba(234,179,8,0.15)",
-              borderBottom: "1px solid rgba(234,179,8,0.3)",
-              color: "#fbbf24",
+              background: "rgba(234,179,8,0.05)",
+              borderBottom: "1px solid rgba(234,179,8,0.2)",
+              color: "rgba(255, 255, 255, 0.7)",
               fontSize: 12,
               fontWeight: 600,
             }}>
@@ -833,15 +821,15 @@ export default function Dashboard() {
             <table className="table" style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th className="col-time">Time</th>
-                  <th>Type</th>
-                  <th className="col-src">Source</th>
-                  <th className="col-dst">Destination</th>
-                  <th className="col-proto">Proto</th>
-                  <th className="col-ports">Port</th>
-                  <th className="col-level">Severity</th>
-                  <th>Reason</th>
-                  <th style={{ textAlign: "right" }}>Analysis</th>
+                  <th className="col-time" style={{ background: "transparent" }}>Time</th>
+                  <th style={{ background: "transparent" }}>Type</th>
+                  <th className="col-src" style={{ background: "transparent" }}>Source</th>
+                  <th className="col-dst" style={{ background: "transparent" }}>Destination</th>
+                  <th className="col-proto" style={{ background: "transparent" }}>Proto</th>
+                  <th className="col-ports" style={{ background: "transparent" }}>Port</th>
+                  <th className="col-level" style={{ background: "transparent" }}>Severity</th>
+                  <th style={{ background: "transparent" }}>Reason</th>
+                  <th style={{ textAlign: "right", background: "transparent" }}>Analysis</th>
                 </tr>
               </thead>
               <tbody>
@@ -854,7 +842,7 @@ export default function Dashboard() {
                       {new Date(r.timeMs).toLocaleTimeString()}
                     </td>
                     <td>
-                      <span className="chip ghost" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
+                      <span className="badge glass-panel" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
                         {r.type}
                       </span>
                     </td>
@@ -877,8 +865,7 @@ export default function Dashboard() {
                     <td style={{ textAlign: "right" }}>
                       {/* Opens the AI analysis side panel for this specific event */}
                       <button
-                        className="btn ghost"
-                        style={{ padding: "6px 12px", fontSize: 12, color: "var(--brand)", borderColor: "var(--border)" }}
+                        className="btn-glass"
                         onClick={() => setSelectedForAI(r)}
                       >
                         <SparklesIcon /> Ask AI
@@ -899,25 +886,25 @@ export default function Dashboard() {
         </div>
   
         {/* ── Alerts card ── */}
-        <div className="card animate-slide animate-delay-1" style={{ padding: 0, overflow: "hidden", marginTop: 20 }}>
+        <div className="card glass-panel hover-card animate-slide animate-delay-1" style={{ padding: 0, overflow: "hidden", marginTop: 20 }}>
           <div
             style={{
               padding: "16px 20px",
-              borderBottom: "1px solid var(--border)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              background: "var(--panel-2)",
+              background: "transparent",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 8, height: 8, background: "var(--warn)", borderRadius: "50%" }} />
-              <h3 style={{ margin: 0, fontSize: 16 }}>Alerts</h3>
-              <span className="badge ghost">{alertsLoading ? "Loading…" : `${filteredAlerts.length} visible`}</span>
+              <div style={{ width: 8, height: 8, background: "rgba(255, 255, 255, 0.6)", borderRadius: "50%" }} />
+              <h3 className="gradient-text" style={{ margin: 0, fontSize: 16 }}>Alerts</h3>
+              <span className="badge glass-panel">{alertsLoading ? "Loading…" : `${filteredAlerts.length} visible`}</span>
             </div>
   
             {/* Manually re-fetches alerts from the backend */}
-            <button className="btn ghost" onClick={refreshAlerts}>
+            <button className="btn-glass" onClick={refreshAlerts}>
               <RefreshIcon /> Refresh Alerts
             </button>
           </div>
@@ -926,8 +913,8 @@ export default function Dashboard() {
           <div
             style={{
               padding: "8px 16px",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--panel)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+              background: "rgba(255, 255, 255, 0.02)",
               display: "flex",
               gap: 12,
               alignItems: "center",
@@ -937,7 +924,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>STATUS:</span>
               <select
-                className="select"
+                className="select glass-panel"
                 style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
                 value={alertStatusFilter}
                 onChange={(e) => setAlertStatusFilter(e.target.value)}
@@ -951,7 +938,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>SEVERITY:</span>
               <select
-                className="select"
+                className="select glass-panel"
                 style={{ fontSize: 12, padding: "4px 8px", height: 28, width: 130 }}
                 value={alertSeverityFilter}
                 onChange={(e) => setAlertSeverityFilter(e.target.value)}
@@ -965,7 +952,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>TYPE:</span>
               <input
-                className="input"
+                className="input glass-panel"
                 style={{ height: 28, fontSize: 12, width: 220 }}
                 placeholder="Filter detection type..."
                 value={alertDetectionFilter}
@@ -979,15 +966,15 @@ export default function Dashboard() {
             <table className="table" style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th>Severity</th>
-                  <th>Detection</th>
-                  <th>Reason</th>
-                  <th>Source</th>
-                  <th>Destination</th>
-                  <th>Proto</th>
-                  <th>Actions</th>
+                  <th style={{ background: "transparent" }}>Created</th>
+                  <th style={{ background: "transparent" }}>Status</th>
+                  <th style={{ background: "transparent" }}>Severity</th>
+                  <th style={{ background: "transparent" }}>Detection</th>
+                  <th style={{ background: "transparent" }}>Reason</th>
+                  <th style={{ background: "transparent" }}>Source</th>
+                  <th style={{ background: "transparent" }}>Destination</th>
+                  <th style={{ background: "transparent" }}>Proto</th>
+                  <th style={{ background: "transparent" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -997,7 +984,7 @@ export default function Dashboard() {
                       {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
                     </td>
                     <td>
-                      <span className="chip ghost" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
+                      <span className="badge glass-panel" style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}>
                         {a.status || "open"}
                       </span>
                     </td>
@@ -1018,8 +1005,7 @@ export default function Dashboard() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {/* Marks alert as acknowledged — disables once already acknowledged */}
                         <button
-                          className="btn ghost"
-                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          className="btn-glass"
                           disabled={(a.status || "open") === "acknowledged"}
                           onClick={() => handleAlertUpdate(a.id, "acknowledged")}
                         >
@@ -1027,8 +1013,7 @@ export default function Dashboard() {
                         </button>
                         {/* Closes the alert — disables once already closed */}
                         <button
-                          className="btn ghost"
-                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          className="btn-glass"
                           disabled={(a.status || "open") === "closed"}
                           onClick={() => handleAlertUpdate(a.id, "closed")}
                         >
