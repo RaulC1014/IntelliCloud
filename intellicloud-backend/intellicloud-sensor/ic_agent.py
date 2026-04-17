@@ -40,6 +40,7 @@ FLOW_FLUSH_SEC  = float(os.getenv("IC_FLOW_FLUSH_SEC", "2.0"))
 FLOW_IDLE_EVICT_SEC = float(os.getenv("IC_FLOW_IDLE_EVICT_SEC", "30.0"))
 FLOW_MAX        = int(os.getenv("IC_FLOW_MAX", "20000"))
 SENDER_RETRY_MAX = int(os.getenv("IC_SENDER_RETRY_MAX", "3"))
+IC_POLL_ENABLED = os.getenv("IC_POLL_ENABLED", "true").lower() != "false"
 
 BPF_DEFAULT = os.getenv(
     "IC_BPF",
@@ -695,7 +696,19 @@ def packet_to_packet_event(pkt, iface: str, local_ips: Set[str]) -> Optional[Dic
         return ev
     except Exception:
         return None
-
+    
+def _check_enabled(sess, api_base, client_key, verify_tls):
+    """Ask the backend if capture should be running."""
+    try:
+        r = sess.get(
+            f"{api_base}/api/agent/enabled",
+            params={"client_key": client_key},
+            timeout=3,
+            verify=verify_tls,
+        )
+        return r.json().get("enabled", True)
+    except Exception:
+        return True  # If backend unreachable, keep running
 
 # ─────────────────────────────────────────────────────────────
 # Main
@@ -763,15 +776,33 @@ def main() -> int:
                 break
 
     # Auto-restart sniff on non-keyboard errors
+    # Auto-restart sniff on non-keyboard errors
+    check_sess = requests.Session()
+
     while True:
         try:
+            if IC_POLL_ENABLED and not _check_enabled(check_sess, args.api, IC_CLIENT_KEY, VERIFY_TLS):
+                print("[agent] Waiting for start signal from dashboard...")
+                time.sleep(3)
+                continue
+
             print(f"[sniff] Starting capture on {iface}  BPF: {args.bpf}")
-            sniff(iface=iface, filter=args.bpf, prn=handler, store=False)
-            break   # clean exit (KeyboardInterrupt lands here via Scapy)
+            sniff(
+                iface=iface,
+                filter=args.bpf,
+                prn=handler,
+                store=False,
+                stop_filter=lambda _: (
+                    IC_POLL_ENABLED and
+                    not _check_enabled(check_sess, args.api, IC_CLIENT_KEY, VERIFY_TLS)
+                ),
+            )
+            print("[agent] Capture stopped by dashboard signal.")
         except KeyboardInterrupt:
+            print("[agent] Stopped by user.")
             break
         except Exception as e:
-            print(f"[sniff-error] {e} — restarting in 3s")
+            print(f"[sniff-error] Interface '{iface}' not found ! — restarting in 3s")
             time.sleep(3)
 
     stop.set()

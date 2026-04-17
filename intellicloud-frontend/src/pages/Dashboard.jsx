@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { USE_MOCK, } from "../config";
-import { agentStart, agentStop, agentStatus } from "../api/agent";
 import { apiFetch, apiUrl } from "../api/http";
 import { mapThreat } from "../adapters";
 import useTrafficStream from "../hooks/useTrafficStream";
@@ -184,30 +183,21 @@ function useThreats() {
 
   useEffect(() => {
     let active = true;
-
     (async () => {
       try {
-        const url = USE_MOCK ? "/mock/threats.json" : apiUrl("threats/public");
-        const res = await fetch(url);
-
-        if (!res.ok) {
-          throw new Error(`Threat fetch failed with status ${res.status}`);
+        if (USE_MOCK) {
+          const res = await fetch("/mock/threats.json");
+          const data = await res.json();
+          if (active) setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
+          return;
         }
-
-        const data = await res.json();
-
-        if (active) {
-          setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
-        }
-      } catch (error) {
-        console.error("Threat fetch failed:", error);
-        if (active) setRaw([]);
+        const data = await apiFetch("threats/public");
+        if (active) setRaw((Array.isArray(data) ? data : data?.items ?? []).map(mapThreat));
+      } catch (err) {
+        console.error("Threat fetch failed:", err);
       }
     })();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   return { raw };
@@ -364,33 +354,17 @@ export default function Dashboard() {
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
   const [agentChecked, setAgentChecked] = useState(false);
-
   const [streamPaused, setStreamPaused] = useState(false);
 
+  // Only check status on mount to set initial state — don't poll continuously
   useEffect(() => {
-    let cancelled = false;
-  
-    const checkStatus = async () => {
-      try {
-        const data = await agentStatus();
-        if (!cancelled) {
-          setAgentRunning(data?.running === true);
-          setAgentChecked(true);
-        }
-      } catch {
-        if (!cancelled) setAgentChecked(true);
-      }
-    };
-  
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    apiFetch("agent/status")
+      .then(data => setAgentRunning(data?.running === true))
+      .catch(() => setAgentRunning(false))
+      .finally(() => setAgentChecked(true));
   }, []);
 
-  const trafficEnabled = agentRunning && !streamPaused && !clientKey
+  const trafficEnabled = !streamPaused
 
   const trafficHook = useTrafficStream({
     maxRows: 2000,
@@ -399,6 +373,7 @@ export default function Dashboard() {
     enabled: trafficEnabled,
     storageKey: "ic_lastTrafficId",
     clientKey,
+    since: 0,
   });
 
   const sseEvents = useMemo(() => {
@@ -429,8 +404,7 @@ export default function Dashboard() {
   const clearTraffic = trafficHook?.clear ?? (() => {});
   const trafficConnected = Boolean(trafficHook?.connected);
   const trafficLastId = trafficHook?.lastId ?? null;
-  const resetTrafficCursor =
-    trafficHook?.resetCursor ||
+  const resetTrafficCursor = trafficHook?.resetCursor ||
     (() => {
       localStorage.setItem("ic_lastTrafficId", "0");
     });
@@ -446,7 +420,13 @@ export default function Dashboard() {
       const id =
         ev?.eid ||
         ev?.id ||
-        `${ev?.ts ?? ""}-${ev?.event_ts ?? ""}-${ev?.created_at ?? ""}-${ev?.src ?? ev?.src_ip ?? ""}-${ev?.dst ?? ev?.dst_ip ?? ""}-${ev?.sport ?? ev?.src_port ?? ""}-${ev?.dport ?? ev?.dst_port ?? ""}`;
+        `${ev?.ts ?? ""}
+        -${ev?.event_ts ?? ""}
+        -${ev?.created_at ?? ""}
+        -${ev?.src ?? ev?.src_ip ?? ""}
+        -${ev?.dst ?? ev?.dst_ip ?? ""}
+        -${ev?.sport ?? ev?.src_port ?? ""
+        }-${ev?.dport ?? ev?.dst_port ?? ""}`;
 
       if (!id) continue;
 
@@ -506,32 +486,34 @@ export default function Dashboard() {
     setSinceTs(0);
   };
 
-  const handleResetCursor = () => {
+  const handleResetCursor = async () => {
     resetTrafficCursor();
-    trafficSeenRef.current = new Set();
-    setTotalEvents(0);
     clearTraffic();
+    setTotalEvents(0);
+    setSinceTs(0);
+    try {
+      await apiFetch("agent/flush", { method: "POST" });
+    } catch {/* */}
   };
 
   const toggleAgent = async () => {
+    if (agentLoading) return;
     setAgentLoading(true);
+    const wasRunning = agentRunning;
+    setAgentRunning(!wasRunning); // flip immediately so button responds instantly
     try {
-      if (agentRunning) {
-        await agentStop();
-        setAgentRunning(false);
-        setStreamPaused(false);
+      if (wasRunning) {
+        await apiFetch("agent/stop", { method: "POST" });
       } else {
-        await agentStart()
-        setAgentRunning(true);
-        setStreamPaused(false);
+        await apiFetch("agent/start", { method: "POST" });
       }
-    } catch (e) {
-      console.error("Agent toggle failed:", e);
-      alert(`Agent control failed: ${e?.message || e}`);
+    } catch (err) {
+      setAgentRunning(wasRunning); // revert only on actual error
+      console.error("Agent toggle failed:", err);
     } finally {
       setAgentLoading(false);
     }
-  }
+  };
 
   const toggleStreamPause = () => setStreamPaused(p => !p);
 

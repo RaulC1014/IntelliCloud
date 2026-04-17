@@ -5,7 +5,7 @@ export default function useTrafficStream({
   path = "traffic/stream",
   enabled = true,
   maxRows = 500,
-  flushMs = 150,
+  flushMs = 50,
   storageKey = "ic_lastTrafficId",
   since: sinceProp = null,
   clientKey = null,

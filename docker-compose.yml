@@ -19,10 +19,10 @@ services:
       gunicorn app:app
       --bind 0.0.0.0:5000
       --worker-class gthread
-      --workers 1
+      --workers 2
       --threads 8
       --keep-alive 75
-      --timeout 0
+      --timeout 120
     ports:
       - "5000:5000"
     env_file:
@@ -63,7 +63,7 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:5000
     ports:
-      - "5174:5173"
+      - "5173:5173"
     volumes:
       - ./intellicloud-frontend:/app
       - /app/node_modules

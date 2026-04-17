@@ -29,7 +29,6 @@ def ping():
     return jsonify({"ok": True, "service": "threats"}), 200
 
 @threats_bp.route("/threats/public", methods=["GET"])
-@require_auth
 def public_threats():
 
     ip = request.args.get("ip")
